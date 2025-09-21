@@ -1,0 +1,125 @@
+const express = require('express');
+const { db } = require('../db');
+const { authRequired } = require('../middlewares/auth');
+const router = express.Router();
+
+// Lấy danh sách tenant chờ duyệt
+router.get('/pending', authRequired, (req, res) => {
+  // Chỉ manager mới có thể xem
+  if (req.user.role !== 'MANAGER') {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  
+  const tenants = db.prepare(`
+    SELECT u.id, u.username, u.name, u.phone, u.status, u.createdAt,
+           t.id as tenantId, t.hoTen, t.soDienThoai, t.cccd
+    FROM User u
+    LEFT JOIN Tenant t ON u.id = t.userId
+    WHERE u.role = 'TENANT' AND u.status = 'PENDING'
+    ORDER BY u.createdAt ASC
+  `).all();
+  
+  res.json(tenants);
+});
+
+// Duyệt tenant
+router.post('/:userId/approve', authRequired, (req, res) => {
+  // Chỉ manager mới có thể duyệt
+  if (req.user.role !== 'MANAGER') {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  
+  const userId = req.params.userId;
+  
+  // Kiểm tra user tồn tại và đang chờ duyệt
+  const user = db.prepare('SELECT * FROM User WHERE id = ? AND role = ? AND status = ?')
+    .get(userId, 'TENANT', 'PENDING');
+  
+  if (!user) {
+    return res.status(404).json({ error: 'Tenant not found or not pending approval' });
+  }
+  
+  try {
+    // Cập nhật status thành ACTIVE và thêm thời gian duyệt
+    const approvedAt = new Date().toISOString();
+    db.prepare('UPDATE User SET status = ?, approvedAt = ? WHERE id = ?')
+      .run('ACTIVE', approvedAt, userId);
+    
+    res.json({ 
+      success: true, 
+      message: 'Tenant đã được duyệt thành công',
+      userId: userId,
+      approvedAt: approvedAt
+    });
+  } catch (error) {
+    console.error('Error approving tenant:', error);
+    res.status(500).json({ error: 'Failed to approve tenant' });
+  }
+});
+
+// Từ chối tenant
+router.post('/:userId/reject', authRequired, (req, res) => {
+  // Chỉ manager mới có thể từ chối
+  if (req.user.role !== 'MANAGER') {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  
+  const userId = req.params.userId;
+  const { reason } = req.body || {};
+  
+  // Kiểm tra user tồn tại và đang chờ duyệt
+  const user = db.prepare('SELECT * FROM User WHERE id = ? AND role = ? AND status = ?')
+    .get(userId, 'TENANT', 'PENDING');
+  
+  if (!user) {
+    return res.status(404).json({ error: 'Tenant not found or not pending approval' });
+  }
+  
+  try {
+    // Cập nhật status thành REJECTED và thêm lý do từ chối
+    const rejectedAt = new Date().toISOString();
+    db.prepare('UPDATE User SET status = ?, rejectedAt = ?, rejectedReason = ? WHERE id = ?')
+      .run('REJECTED', rejectedAt, reason || 'Không đủ điều kiện', userId);
+    
+    res.json({ 
+      success: true, 
+      message: 'Tenant đã bị từ chối',
+      userId: userId,
+      rejectedAt: rejectedAt,
+      rejectedReason: reason || 'Không đủ điều kiện'
+    });
+  } catch (error) {
+    console.error('Error rejecting tenant:', error);
+    res.status(500).json({ error: 'Failed to reject tenant' });
+  }
+});
+
+// Lấy thống kê duyệt tenant
+router.get('/stats', authRequired, (req, res) => {
+  // Chỉ manager mới có thể xem
+  if (req.user.role !== 'MANAGER') {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  
+  const stats = db.prepare(`
+    SELECT 
+      status,
+      COUNT(*) as count
+    FROM User 
+    WHERE role = 'TENANT'
+    GROUP BY status
+  `).all();
+  
+  const totalPending = stats.find(s => s.status === 'PENDING')?.count || 0;
+  const totalApproved = stats.find(s => s.status === 'ACTIVE')?.count || 0;
+  const totalRejected = stats.find(s => s.status === 'REJECTED')?.count || 0;
+  
+  res.json({
+    pending: totalPending,
+    approved: totalApproved,
+    rejected: totalRejected,
+    total: totalPending + totalApproved + totalRejected
+  });
+});
+
+module.exports = router;
