@@ -92,6 +92,25 @@ const RoomsScreen = ({ navigation }: any) => {
             Tạo: {new Date(item.createdAt).toLocaleDateString('vi-VN')}
           </Text>
         </View>
+
+        {item.currentTenants && item.currentTenants.length > 0 && (
+          <View style={styles.tenantsBlock}>
+            <View style={styles.tenantsHeader}>
+              <Ionicons name="people-outline" size={16} color="#666" />
+              <Text style={styles.tenantsTitle}>Khách đang ở:</Text>
+            </View>
+            {item.currentTenants.map((t) => (
+              <View key={t.id} style={styles.tenantRow}>
+                <Text style={styles.tenantName}>
+                  {t.hoTen} {t.isPrimaryTenant ? '(Chính)' : ''}
+                </Text>
+                {!!t.soDienThoai && (
+                  <Text style={styles.tenantPhone}>{t.soDienThoai}</Text>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
       </View>
 
       <View style={styles.roomActions}>
@@ -268,6 +287,37 @@ const styles = StyleSheet.create({
   },
   roomInfo: {
     marginBottom: 12,
+  },
+  tenantsBlock: {
+    marginTop: 8,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 8,
+    padding: 8,
+  },
+  tenantsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+    gap: 6,
+  },
+  tenantsTitle: {
+    marginLeft: 6,
+    fontSize: 14,
+    color: '#444',
+    fontWeight: '600',
+  },
+  tenantRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  tenantName: {
+    fontSize: 14,
+    color: '#333',
+  },
+  tenantPhone: {
+    fontSize: 13,
+    color: '#666',
   },
   infoRow: {
     flexDirection: 'row',

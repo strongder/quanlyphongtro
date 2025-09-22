@@ -21,6 +21,14 @@ export interface Room {
   trangThai: 'TRONG' | 'CO_KHACH';
   note?: string;
   createdAt: string;
+  currentTenants?: Array<{
+    id: number;
+    hoTen: string;
+    soDienThoai?: string;
+    username: string;
+    isPrimaryTenant: number;
+    ngayVao: string;
+  }>;
 }
 
 export interface Tenant {
@@ -54,9 +62,10 @@ export interface Invoice {
   donGiaNuoc: number;
   phuPhi: number;
   tongCong: number;
-  status: 'PAID' | 'UNPAID';
+  status: 'PAID' | 'UNPAID' | 'PENDING';
   createdAt: string;
   paidAt?: string;
+  requestedAt?: string;
 }
 
 export interface AuthResponse {

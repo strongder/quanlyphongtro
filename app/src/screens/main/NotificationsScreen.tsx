@@ -9,7 +9,9 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { settingsService } from '../../services/api';
+import { settingsService, invoiceService } from '../../services/api';
+import { Invoice } from '../../types';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface Notification {
   id: string;
@@ -24,16 +26,27 @@ interface Notification {
 }
 
 const NotificationsScreen = ({ navigation }: any) => {
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
 
   const loadData = async () => {
     try {
       const settingsData = await settingsService.getSettings();
       setSettings(settingsData);
       
-      const currentNotifications = generateNotifications(settingsData);
+      // Lấy hóa đơn để tạo thông báo đúng vai trò
+      let invoicesData: Invoice[] = [];
+      if (user?.role === 'MANAGER') {
+        invoicesData = await invoiceService.getInvoices('PENDING');
+      } else if (user?.role === 'TENANT') {
+        invoicesData = await invoiceService.getInvoices();
+      }
+      setInvoices(invoicesData);
+
+      const currentNotifications = generateNotifications(settingsData, invoicesData);
       setNotifications(currentNotifications);
     } catch (error) {
       console.log('Error loading notifications:', error);
@@ -42,74 +55,139 @@ const NotificationsScreen = ({ navigation }: any) => {
     }
   };
 
-  const generateNotifications = (settings: Record<string, string>): Notification[] => {
+  const generateNotifications = (settings: Record<string, string>, invoicesList: Invoice[]): Notification[] => {
     const notifications: Notification[] = [];
     const today = new Date();
     const currentDay = today.getDate();
     const currentMonth = today.getMonth() + 1;
     const currentYear = today.getFullYear();
 
-    // Kiểm tra ngày nhắc nhập chỉ số
+    // Nếu là khách thuê, KHÔNG hiển thị các nhắc nhở nhập chỉ số
     const ngayNhapSo = parseInt(settings.ngayNhapSo || '30');
-    if (currentDay === ngayNhapSo) {
-      notifications.push({
-        id: 'meter-reading-reminder',
-        type: 'meter_reading',
-        title: '📊 Nhắc nhập chỉ số điện nước',
-        message: `Hôm nay (${currentDay}/${currentMonth}/${currentYear}) là ngày nhập chỉ số điện nước. Hãy nhập chỉ số cho tất cả các phòng.`,
-        priority: 'high',
-        isRead: false,
-        createdAt: new Date().toISOString(),
-        actionText: 'Nhập chỉ số',
-        onAction: () => navigation.navigate('Meter'),
-      });
+    if (user?.role === 'MANAGER') {
+      if (currentDay === ngayNhapSo) {
+        notifications.push({
+          id: 'meter-reading-reminder',
+          type: 'meter_reading',
+          title: '📊 Nhắc nhập chỉ số điện nước',
+          message: `Hôm nay (${currentDay}/${currentMonth}/${currentYear}) là ngày nhập chỉ số điện nước. Hãy nhập chỉ số cho tất cả các phòng.`,
+          priority: 'high',
+          isRead: false,
+          createdAt: new Date().toISOString(),
+          actionText: 'Nhập chỉ số',
+          onAction: () => navigation.navigate('Meter'),
+        });
+      }
     }
 
-    // Kiểm tra ngày nhắc thanh toán
+    // Kiểm tra ngày nhắc thanh toán (role-specific)
     const ngayNhapTien = parseInt(settings.ngayNhapTien || '5');
     if (currentDay === ngayNhapTien) {
-      notifications.push({
-        id: 'payment-reminder',
-        type: 'payment',
-        title: '💰 Nhắc thu tiền phòng',
-        message: `Hôm nay (${currentDay}/${currentMonth}/${currentYear}) là ngày thu tiền phòng. Hãy kiểm tra và thu tiền từ khách thuê.`,
-        priority: 'high',
-        isRead: false,
-        createdAt: new Date().toISOString(),
-        actionText: 'Xem hóa đơn',
-        onAction: () => navigation.navigate('Invoices'),
-      });
+      if (user?.role === 'MANAGER') {
+        notifications.push({
+          id: 'payment-reminder-manager',
+          type: 'payment',
+          title: '💰 Nhắc thu tiền phòng',
+          message: `Hôm nay (${currentDay}/${currentMonth}/${currentYear}) là ngày thu tiền phòng. Hãy kiểm tra hóa đơn và thu tiền từ khách thuê.`,
+          priority: 'high',
+          isRead: false,
+          createdAt: new Date().toISOString(),
+          actionText: 'Xem hóa đơn',
+          onAction: () => navigation.navigate('Invoices'),
+        });
+      } else if (user?.role === 'TENANT') {
+        notifications.push({
+          id: 'payment-reminder-tenant',
+          type: 'payment',
+          title: '💰 Đến hạn thanh toán tiền phòng',
+          message: `Hôm nay (${currentDay}/${currentMonth}/${currentYear}) là hạn thanh toán. Vui lòng kiểm tra hóa đơn và gửi yêu cầu xác nhận thanh toán cho quản lý.`,
+          priority: 'high',
+          isRead: false,
+          createdAt: new Date().toISOString(),
+          actionText: 'Xem hóa đơn',
+          onAction: () => navigation.navigate('Invoices'),
+        });
+      }
     }
 
-    // Thông báo gần đến hạn nhập chỉ số (3 ngày trước)
+    // Thông báo gần đến hạn nhập chỉ số (3 ngày trước) — chỉ cho quản lý
     const daysBefore = 3;
-    if (currentDay === ngayNhapSo - daysBefore || (currentDay + daysBefore) % 30 === ngayNhapSo) {
-      notifications.push({
-        id: 'meter-reading-upcoming',
-        type: 'meter_reading',
-        title: '⏰ Sắp đến hạn nhập chỉ số',
-        message: `Còn ${daysBefore} ngày nữa (ngày ${ngayNhapSo}) sẽ đến hạn nhập chỉ số điện nước.`,
-        priority: 'medium',
-        isRead: false,
-        createdAt: new Date().toISOString(),
-        actionText: 'Xem chi tiết',
-        onAction: () => navigation.navigate('Meter'),
-      });
+    if (user?.role === 'MANAGER') {
+      if (currentDay === ngayNhapSo - daysBefore || (currentDay + daysBefore) % 30 === ngayNhapSo) {
+        notifications.push({
+          id: 'meter-reading-upcoming',
+          type: 'meter_reading',
+          title: '⏰ Sắp đến hạn nhập chỉ số',
+          message: `Còn ${daysBefore} ngày nữa (ngày ${ngayNhapSo}) sẽ đến hạn nhập chỉ số điện nước.`,
+          priority: 'medium',
+          isRead: false,
+          createdAt: new Date().toISOString(),
+          actionText: 'Xem chi tiết',
+          onAction: () => navigation.navigate('Meter'),
+        });
+      }
     }
 
-    // Thông báo gần đến hạn thanh toán (2 ngày trước)
+    // Thông báo gần đến hạn thanh toán (2 ngày trước) — role-specific
     if (currentDay === ngayNhapTien - 2 || (currentDay + 2) % 30 === ngayNhapTien) {
-      notifications.push({
-        id: 'payment-upcoming',
-        type: 'payment',
-        title: '⏰ Sắp đến hạn thu tiền',
-        message: `Còn 2 ngày nữa (ngày ${ngayNhapTien}) sẽ đến hạn thu tiền phòng.`,
-        priority: 'medium',
-        isRead: false,
-        createdAt: new Date().toISOString(),
-        actionText: 'Xem hóa đơn',
-        onAction: () => navigation.navigate('Invoices'),
-      });
+      if (user?.role === 'MANAGER') {
+        notifications.push({
+          id: 'payment-upcoming-manager',
+          type: 'payment',
+          title: '⏰ Sắp đến hạn thu tiền',
+          message: `Còn 2 ngày nữa (ngày ${ngayNhapTien}) sẽ đến hạn thu tiền phòng. Chuẩn bị kế hoạch thu tiền.`,
+          priority: 'medium',
+          isRead: false,
+          createdAt: new Date().toISOString(),
+          actionText: 'Xem hóa đơn',
+          onAction: () => navigation.navigate('Invoices'),
+        });
+      } else if (user?.role === 'TENANT') {
+        notifications.push({
+          id: 'payment-upcoming-tenant',
+          type: 'payment',
+          title: '⏰ Sắp đến hạn thanh toán',
+          message: `Còn 2 ngày nữa (ngày ${ngayNhapTien}) sẽ đến hạn thanh toán tiền phòng. Vui lòng chuẩn bị và kiểm tra hóa đơn.`,
+          priority: 'medium',
+          isRead: false,
+          createdAt: new Date().toISOString(),
+          actionText: 'Xem hóa đơn',
+          onAction: () => navigation.navigate('Invoices'),
+        });
+      }
+    }
+
+    // Thông báo hóa đơn đang chờ xác nhận
+    if (user?.role === 'MANAGER') {
+      const pendingCount = invoicesList.filter(inv => inv.status === 'PENDING').length;
+      if (pendingCount > 0) {
+        notifications.push({
+          id: 'payment-approval-pending',
+          type: 'payment',
+          title: '🟠 Hóa đơn chờ xác nhận',
+          message: `Hiện có ${pendingCount} hóa đơn đang chờ bạn xác nhận thanh toán.`,
+          priority: 'high',
+          isRead: false,
+          createdAt: new Date().toISOString(),
+          actionText: 'Xem hóa đơn',
+          onAction: () => navigation.navigate('Invoices'),
+        });
+      }
+    } else if (user?.role === 'TENANT') {
+      const hasPending = invoicesList.some(inv => inv.status === 'PENDING');
+      if (hasPending) {
+        notifications.push({
+          id: 'payment-awaiting-approval',
+          type: 'payment',
+          title: '🟠 Đang chờ quản lý xác nhận',
+          message: 'Yêu cầu xác nhận thanh toán của bạn đang được quản lý xử lý.',
+          priority: 'medium',
+          isRead: false,
+          createdAt: new Date().toISOString(),
+          actionText: 'Xem hóa đơn',
+          onAction: () => navigation.navigate('Invoices'),
+        });
+      }
     }
 
     // Thêm thông báo hệ thống
@@ -117,7 +195,9 @@ const NotificationsScreen = ({ navigation }: any) => {
       id: 'system-info',
       type: 'system',
       title: '🏠 Hệ thống hoạt động bình thường',
-      message: 'Tất cả chức năng của ứng dụng đang hoạt động tốt. Bạn có thể sử dụng đầy đủ các tính năng.',
+      message: user?.role === 'TENANT'
+        ? 'Bạn có thể xem hóa đơn và gửi yêu cầu xác nhận thanh toán khi cần.'
+        : 'Tất cả chức năng đang hoạt động. Bạn có thể nhập chỉ số và duyệt thanh toán.',
       priority: 'low',
       isRead: false,
       createdAt: new Date().toISOString(),

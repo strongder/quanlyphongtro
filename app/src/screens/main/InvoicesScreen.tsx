@@ -11,12 +11,14 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Invoice, Room } from '../../types';
 import { invoiceService, roomService } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 const InvoicesScreen = ({ navigation }: any) => {
+  const { user } = useAuth();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'PAID' | 'UNPAID'>('all');
+  const [filter, setFilter] = useState<'all' | 'PAID' | 'UNPAID' | 'PENDING'>('all');
   const [selectedKy, setSelectedKy] = useState(getCurrentKy());
 
   function getCurrentKy() {
@@ -48,21 +50,44 @@ const InvoicesScreen = ({ navigation }: any) => {
     return rooms.find(room => room.id === roomId);
   };
 
-  const handlePayInvoice = (invoice: Invoice) => {
+  const handleRequestPayment = (invoice: Invoice) => {
     Alert.alert(
-      'Xác nhận thanh toán',
-      `Bạn có chắc muốn đánh dấu hóa đơn phòng ${getRoomInfo(invoice.roomId)?.maPhong} đã thanh toán?`,
+      'Yêu cầu xác nhận thanh toán',
+      `Gửi yêu cầu xác nhận cho hóa đơn phòng ${getRoomInfo(invoice.roomId)?.maPhong}?`,
       [
         { text: 'Hủy', style: 'cancel' },
         {
-          text: 'Thanh toán',
+          text: 'Gửi yêu cầu',
+          onPress: async () => {
+            try {
+              await invoiceService.requestPayment(invoice.id);
+              loadData();
+              Alert.alert('Thành công', 'Đã gửi yêu cầu xác nhận thanh toán');
+            } catch (error) {
+              Alert.alert('Lỗi', 'Không thể gửi yêu cầu');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleConfirmPaid = (invoice: Invoice) => {
+    Alert.alert(
+      'Xác nhận thanh toán',
+      `Xác nhận hóa đơn phòng ${getRoomInfo(invoice.roomId)?.maPhong} đã thanh toán?`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Xác nhận',
           onPress: async () => {
             try {
               await invoiceService.payInvoice(invoice.id);
               loadData();
-              Alert.alert('Thành công', 'Đã đánh dấu thanh toán');
-            } catch (error) {
-              Alert.alert('Lỗi', 'Không thể cập nhật trạng thái thanh toán');
+              Alert.alert('Thành công', 'Đã xác nhận thanh toán');
+            } catch (error: any) {
+              const msg = error?.response?.data?.error || 'Không thể xác nhận thanh toán';
+              Alert.alert('Lỗi', msg);
             }
           },
         },
@@ -104,10 +129,10 @@ const InvoicesScreen = ({ navigation }: any) => {
           <Text style={styles.roomCode}>{room?.maPhong || 'N/A'}</Text>
           <View style={[
             styles.statusBadge,
-            { backgroundColor: item.status === 'PAID' ? '#34C759' : '#FF9500' }
+            { backgroundColor: item.status === 'PAID' ? '#34C759' : item.status === 'PENDING' ? '#FFA500' : '#FF3B30' }
           ]}>
             <Text style={styles.statusText}>
-              {item.status === 'PAID' ? 'Đã thanh toán' : 'Chưa thanh toán'}
+              {item.status === 'PAID' ? 'Đã thanh toán' : item.status === 'PENDING' ? 'Chờ xác nhận' : 'Chưa thanh toán'}
             </Text>
           </View>
         </View>
@@ -148,13 +173,28 @@ const InvoicesScreen = ({ navigation }: any) => {
             <Text style={styles.actionText}>Xem</Text>
           </TouchableOpacity>
           
-          {item.status === 'UNPAID' && (
+          {user?.role === 'TENANT' && item.status === 'UNPAID' && (
             <TouchableOpacity
               style={styles.actionButton}
-              onPress={() => handlePayInvoice(item)}
+              onPress={() => handleRequestPayment(item)}
             >
-              <Ionicons name="checkmark-outline" size={20} color="#34C759" />
-              <Text style={styles.actionText}>Thanh toán</Text>
+              <Ionicons name="send-outline" size={20} color="#34C759" />
+              <Text style={styles.actionText}>Yêu cầu xác nhận</Text>
+            </TouchableOpacity>
+          )}
+          {user?.role === 'TENANT' && item.status === 'PENDING' && (
+            <View style={styles.pendingNote}>
+              <Ionicons name="time-outline" size={16} color="#FFA500" />
+              <Text style={styles.pendingText}>Đang chờ quản lý xác nhận</Text>
+            </View>
+          )}
+          {user?.role === 'MANAGER' && (item.status === 'UNPAID' || item.status === 'PENDING') && (
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => handleConfirmPaid(item)}
+            >
+              <Ionicons name="checkmark-done-outline" size={20} color="#34C759" />
+              <Text style={styles.actionText}>Xác nhận thanh toán</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -176,6 +216,7 @@ const InvoicesScreen = ({ navigation }: any) => {
   const filterButtons = [
     { key: 'all', label: 'Tất cả' },
     { key: 'UNPAID', label: 'Chưa thanh toán' },
+    { key: 'PENDING', label: 'Chờ xác nhận' },
     { key: 'PAID', label: 'Đã thanh toán' },
   ];
 

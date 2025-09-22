@@ -30,6 +30,7 @@ router.post('/:userId/approve', authRequired, (req, res) => {
   }
   
   const userId = req.params.userId;
+  const { roomId } = req.body || {};
   
   // Kiểm tra user tồn tại và đang chờ duyệt
   const user = db.prepare('SELECT * FROM User WHERE id = ? AND role = ? AND status = ?')
@@ -40,16 +41,51 @@ router.post('/:userId/approve', authRequired, (req, res) => {
   }
   
   try {
-    // Cập nhật status thành ACTIVE và thêm thời gian duyệt
+    // Bắt buộc phải truyền roomId để gán phòng khi duyệt
+    if (!roomId) {
+      return res.status(400).json({ error: 'roomId required to approve tenant' });
+    }
+
+    // Kiểm tra phòng tồn tại và còn trống
+    const room = db.prepare('SELECT * FROM Room WHERE id = ?').get(roomId);
+    if (!room) {
+      return res.status(404).json({ error: 'Room not found' });
+    }
+    if (room.trangThai !== 'TRONG') {
+      return res.status(400).json({ error: 'Room is not available' });
+    }
+
+    // Tìm hoặc tạo Tenant record cho user này
+    let tenant = db.prepare('SELECT * FROM Tenant WHERE userId = ?').get(userId);
+    if (!tenant) {
+      const info = db.prepare('INSERT INTO Tenant (userId, hoTen, soDienThoai, cccd) VALUES (?,?,?,?)')
+        .run(user.id, user.name || user.username, user.phone || null, null);
+      tenant = db.prepare('SELECT * FROM Tenant WHERE id = ?').get(info.lastInsertRowid);
+    }
+
+    // Transaction: tạo RoomTenant, cập nhật trạng thái phòng, cập nhật trạng thái user
+    const tx = db.transaction(() => {
+      const ngayVao = new Date().toISOString().split('T')[0];
+      db.prepare('INSERT INTO RoomTenant (roomId, tenantId, ngayVao, isPrimaryTenant) VALUES (?,?,?,?)')
+        .run(roomId, tenant.id, ngayVao, 1);
+
+      db.prepare('UPDATE Room SET trangThai = ? WHERE id = ?').run('CO_KHACH', roomId);
+
+      const approvedAt = new Date().toISOString();
+      db.prepare('UPDATE User SET status = ?, approvedAt = ? WHERE id = ?')
+        .run('ACTIVE', approvedAt, userId);
+    });
+
+    tx();
+
     const approvedAt = new Date().toISOString();
-    db.prepare('UPDATE User SET status = ?, approvedAt = ? WHERE id = ?')
-      .run('ACTIVE', approvedAt, userId);
-    
-    res.json({ 
-      success: true, 
-      message: 'Tenant đã được duyệt thành công',
-      userId: userId,
-      approvedAt: approvedAt
+    return res.json({
+      success: true,
+      message: 'Tenant đã được duyệt và gán phòng thành công',
+      userId,
+      tenantId: tenant.id,
+      roomId,
+      approvedAt
     });
   } catch (error) {
     console.error('Error approving tenant:', error);

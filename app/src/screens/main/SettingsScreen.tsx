@@ -36,8 +36,12 @@ const SettingsScreen = () => {
   };
 
   useEffect(() => {
-    loadSettings();
-  }, []);
+    if (user?.role === 'MANAGER') {
+      loadSettings();
+    } else {
+      setIsLoading(false);
+    }
+  }, [user?.role]);
 
   const handleSaveSettings = async () => {
     try {
@@ -186,32 +190,34 @@ const SettingsScreen = () => {
         </View>
       </View>
 
-      {/* System Settings */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Cài đặt hệ thống</Text>
-        
-        <View style={styles.settingsCard}>
-          {settingItems.map((item) => (
-            <View key={item.key} style={styles.settingItem}>
-              <Text style={styles.settingLabel}>{item.label}</Text>
-              <TextInput
-                style={styles.settingInput}
-                value={settings[item.key] ?? ''}
-                onChangeText={(text) => setSettings({ ...settings, [item.key]: text })}
-                keyboardType={item.type === 'number' ? 'numeric' : 'default'}
-                placeholder={item.value}
-              />
-            </View>
-          ))}
+      {/* System Settings - chỉ dành cho quản lý */}
+      {user?.role === 'MANAGER' && (
+        <View className="section" style={styles.section}>
+          <Text style={styles.sectionTitle}>Cài đặt hệ thống</Text>
+          
+          <View style={styles.settingsCard}>
+            {settingItems.map((item) => (
+              <View key={item.key} style={styles.settingItem}>
+                <Text style={styles.settingLabel}>{item.label}</Text>
+                <TextInput
+                  style={styles.settingInput}
+                  value={settings[item.key] ?? ''}
+                  onChangeText={(text) => setSettings({ ...settings, [item.key]: text })}
+                  keyboardType={item.type === 'number' ? 'numeric' : 'default'}
+                  placeholder={item.value}
+                />
+              </View>
+            ))}
 
-          <TouchableOpacity
-            style={styles.saveSettingsButton}
-            onPress={handleSaveSettings}
-          >
-            <Text style={styles.saveSettingsButtonText}>Lưu cài đặt</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.saveSettingsButton}
+              onPress={handleSaveSettings}
+            >
+              <Text style={styles.saveSettingsButtonText}>Lưu cài đặt</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      )}
 
       {/* App Info */}
       <View style={styles.section}>

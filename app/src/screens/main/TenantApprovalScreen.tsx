@@ -9,9 +9,10 @@ import {
   RefreshControl,
   Modal,
   TextInput,
+  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { tenantApprovalService } from '../../services/api';
+import { tenantApprovalService, roomService } from '../../services/api';
 
 interface PendingTenant {
   id: number;
@@ -40,6 +41,9 @@ const TenantApprovalScreen = () => {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState<PendingTenant | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [showApproveModal, setShowApproveModal] = useState(false);
+  const [availableRooms, setAvailableRooms] = useState<any[]>([]);
+  const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -63,31 +67,41 @@ const TenantApprovalScreen = () => {
   }, []);
 
   const handleApprove = async (tenant: PendingTenant) => {
-    Alert.alert(
-      'Duyệt tenant',
-      `Bạn có chắc muốn duyệt tenant "${tenant.name}" (${tenant.username})?`,
-      [
-        { text: 'Hủy', style: 'cancel' },
-        {
-          text: 'Duyệt',
-          onPress: async () => {
-            try {
-              await tenantApprovalService.approveTenant(tenant.id);
-              Alert.alert('Thành công', 'Tenant đã được duyệt');
-              loadData();
-            } catch (error: any) {
-              Alert.alert('Lỗi', error.response?.data?.error || 'Không thể duyệt tenant');
-            }
-          }
-        }
-      ]
-    );
+    try {
+      setSelectedTenant(tenant);
+      setSelectedRoomId(null);
+      // Lấy danh sách phòng trống
+      const rooms = await roomService.getRooms('TRONG');
+      setAvailableRooms(rooms);
+      setShowApproveModal(true);
+    } catch (error: any) {
+      Alert.alert('Lỗi', 'Không thể tải danh sách phòng trống');
+    }
   };
 
   const handleReject = (tenant: PendingTenant) => {
     setSelectedTenant(tenant);
     setRejectReason('');
     setShowRejectModal(true);
+  };
+
+  const confirmApprove = async () => {
+    if (!selectedTenant) return;
+    if (!selectedRoomId) {
+      Alert.alert('Lỗi', 'Vui lòng chọn phòng để gán cho tenant');
+      return;
+    }
+
+    try {
+      await tenantApprovalService.approveTenant(selectedTenant.id, selectedRoomId);
+      Alert.alert('Thành công', 'Đã duyệt và gán phòng cho tenant');
+      setShowApproveModal(false);
+      setSelectedTenant(null);
+      setSelectedRoomId(null);
+      loadData();
+    } catch (error: any) {
+      Alert.alert('Lỗi', error.response?.data?.error || 'Không thể duyệt tenant');
+    }
   };
 
   const confirmReject = async () => {
@@ -193,6 +207,72 @@ const TenantApprovalScreen = () => {
           )}
         </View>
       </ScrollView>
+
+      {/* Approve Modal (choose room) */}
+      <Modal
+        visible={showApproveModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity
+              onPress={() => setShowApproveModal(false)}
+              style={styles.modalCloseButton}
+            >
+              <Ionicons name="close" size={24} color="#666" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Chọn phòng để gán</Text>
+            <View style={styles.modalPlaceholder} />
+          </View>
+
+          <View style={styles.modalContent}>
+            <Text style={styles.modalSubtitle}>
+              Tenant: {selectedTenant?.name} (@{selectedTenant?.username})
+            </Text>
+
+            {availableRooms.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="business-outline" size={48} color="#ccc" />
+                <Text style={styles.emptyText}>Không có phòng trống</Text>
+              </View>
+            ) : (
+              <ScrollView>
+                {availableRooms.map((room) => (
+                  <TouchableOpacity
+                    key={room.id}
+                    style={[styles.roomItem, selectedRoomId === room.id && styles.roomItemSelected]}
+                    onPress={() => setSelectedRoomId(room.id)}
+                  >
+                    <View style={styles.roomInfo}>
+                      <Text style={styles.roomCode}>{room.maPhong}</Text>
+                      <Text style={styles.roomPrice}>{room.giaThue?.toLocaleString('vi-VN')} đ</Text>
+                    </View>
+                    {selectedRoomId === room.id && (
+                      <Ionicons name="checkmark-circle" size={24} color="#34C759" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+
+          <View style={styles.modalFooter}>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.cancelButton]}
+              onPress={() => setShowApproveModal(false)}
+            >
+              <Text style={styles.cancelButtonText}>Hủy</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.confirmApproveButton]}
+              onPress={confirmApprove}
+            >
+              <Text style={styles.confirmButtonText}>Duyệt & Gán phòng</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Reject Modal */}
       <Modal

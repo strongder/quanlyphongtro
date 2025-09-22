@@ -170,6 +170,11 @@ export const invoiceService = {
     return response.data;
   },
 
+  async requestPayment(id: number): Promise<Invoice> {
+    const response = await api.post(`/invoices/${id}/request-payment`);
+    return response.data;
+  },
+
   async payInvoice(id: number): Promise<Invoice> {
     const response = await api.patch(`/invoices/${id}/pay`);
     return response.data;
@@ -221,8 +226,8 @@ export const tenantApprovalService = {
     return response.data;
   },
 
-  async approveTenant(userId: number): Promise<any> {
-    const response = await api.post(`/tenant-approval/${userId}/approve`);
+  async approveTenant(userId: number, roomId: number): Promise<any> {
+    const response = await api.post(`/tenant-approval/${userId}/approve`, { roomId });
     return response.data;
   },
 

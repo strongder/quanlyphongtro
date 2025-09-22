@@ -32,7 +32,19 @@ router.get('/', (req, res) => {
   } else {
     rows = db.prepare('SELECT * FROM Room ORDER BY id DESC').all();
   }
-  res.json(rows);
+  // Gắn danh sách tenant đang ở cho từng phòng (ngayRa IS NULL)
+  const result = rows.map((room) => {
+    const tenants = db.prepare(`
+      SELECT t.id, t.hoTen, t.soDienThoai, u.username, rt.isPrimaryTenant, rt.ngayVao
+      FROM RoomTenant rt
+      JOIN Tenant t ON t.id = rt.tenantId
+      JOIN User u ON u.id = t.userId
+      WHERE rt.roomId = ? AND rt.ngayRa IS NULL
+      ORDER BY rt.isPrimaryTenant DESC, t.id ASC
+    `).all(room.id);
+    return { ...room, currentTenants: tenants };
+  });
+  res.json(result);
 });
 
 router.post('/', (req, res) => {
@@ -48,9 +60,32 @@ router.post('/', (req, res) => {
 });
 
 router.get('/:id', (req, res) => {
-  const row = db.prepare('SELECT * FROM Room WHERE id = ?').get(req.params.id);
-  if (!row) return res.status(404).json({ error: 'Not found' });
-  res.json(row);
+  const room = db.prepare('SELECT * FROM Room WHERE id = ?').get(req.params.id);
+  if (!room) return res.status(404).json({ error: 'Not found' });
+  const tenants = db.prepare(`
+    SELECT t.id, t.hoTen, t.soDienThoai, u.username, rt.isPrimaryTenant, rt.ngayVao
+    FROM RoomTenant rt
+    JOIN Tenant t ON t.id = rt.tenantId
+    JOIN User u ON u.id = t.userId
+    WHERE rt.roomId = ? AND rt.ngayRa IS NULL
+    ORDER BY rt.isPrimaryTenant DESC, t.id ASC
+  `).all(room.id);
+  res.json({ ...room, currentTenants: tenants });
+});
+
+// Lấy tenants đang ở trong 1 phòng (tiện cho UI gọi riêng)
+router.get('/:id/tenants', (req, res) => {
+  const room = db.prepare('SELECT id FROM Room WHERE id = ?').get(req.params.id);
+  if (!room) return res.status(404).json({ error: 'Not found' });
+  const tenants = db.prepare(`
+    SELECT t.id, t.hoTen, t.soDienThoai, u.username, rt.isPrimaryTenant, rt.ngayVao
+    FROM RoomTenant rt
+    JOIN Tenant t ON t.id = rt.tenantId
+    JOIN User u ON u.id = t.userId
+    WHERE rt.roomId = ? AND rt.ngayRa IS NULL
+    ORDER BY rt.isPrimaryTenant DESC, t.id ASC
+  `).all(req.params.id);
+  res.json(tenants);
 });
 
 router.patch('/:id', (req, res) => {

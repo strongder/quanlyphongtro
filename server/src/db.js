@@ -75,9 +75,10 @@ function runMigrations() {
       donGiaNuoc REAL NOT NULL,
       phuPhi REAL NOT NULL DEFAULT 0,
       tongCong REAL NOT NULL,
-      status TEXT NOT NULL CHECK(status IN ('PAID','UNPAID')) DEFAULT 'UNPAID',
+      status TEXT NOT NULL CHECK(status IN ('PAID','UNPAID','PENDING')) DEFAULT 'UNPAID',
       createdAt TEXT NOT NULL DEFAULT (datetime('now')),
       paidAt TEXT,
+      requestedAt TEXT,
       UNIQUE(roomId, ky)
     );
 
@@ -95,6 +96,52 @@ function runMigrations() {
 }
 
 runMigrations();
+
+// Simple migration to ensure Invoice supports PENDING and requestedAt
+try {
+  const cols = db.prepare("PRAGMA table_info('Invoice')").all();
+  const hasRequestedAt = cols.some(c => c.name === 'requestedAt');
+  // Check constraint by reading table SQL
+  const tableSqlRow = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='Invoice'").get();
+  const tableSql = tableSqlRow?.sql || '';
+  const supportsPending = tableSql.includes("'PENDING'");
+
+  if (!hasRequestedAt || !supportsPending) {
+    db.transaction(() => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS Invoice_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          roomId INTEGER NOT NULL REFERENCES Room(id) ON DELETE CASCADE,
+          ky TEXT NOT NULL,
+          tienPhong REAL NOT NULL,
+          dienTieuThu REAL NOT NULL,
+          nuocTieuThu REAL NOT NULL,
+          donGiaDien REAL NOT NULL,
+          donGiaNuoc REAL NOT NULL,
+          phuPhi REAL NOT NULL DEFAULT 0,
+          tongCong REAL NOT NULL,
+          status TEXT NOT NULL CHECK(status IN ('PAID','UNPAID','PENDING')) DEFAULT 'UNPAID',
+          createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+          paidAt TEXT,
+          requestedAt TEXT,
+          UNIQUE(roomId, ky)
+        );
+      `);
+
+      // Copy data with best-effort mapping; requestedAt will be NULL
+      db.exec(`
+        INSERT INTO Invoice_new (id, roomId, ky, tienPhong, dienTieuThu, nuocTieuThu, donGiaDien, donGiaNuoc, phuPhi, tongCong, status, createdAt, paidAt)
+        SELECT id, roomId, ky, tienPhong, dienTieuThu, nuocTieuThu, donGiaDien, donGiaNuoc, phuPhi, tongCong, status, createdAt, paidAt FROM Invoice;
+      `);
+
+      db.exec('DROP TABLE Invoice;');
+      db.exec('ALTER TABLE Invoice_new RENAME TO Invoice;');
+    })();
+  }
+} catch (e) {
+  // eslint-disable-next-line no-console
+  console.error('Invoice migration check failed:', e);
+}
 
 module.exports = { db };
 

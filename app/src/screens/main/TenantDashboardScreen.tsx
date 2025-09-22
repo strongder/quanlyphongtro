@@ -135,9 +135,9 @@ const TenantDashboardScreen = ({ navigation }: any) => {
               <Text style={styles.label}>Trạng thái:</Text>
               <Text style={[
                 styles.value,
-                currentInvoice.status === 'PAID' ? styles.paidText : styles.unpaidText
+                currentInvoice.status === 'PAID' ? styles.paidText : currentInvoice.status === 'PENDING' ? styles.pendingText : styles.unpaidText
               ]}>
-                {currentInvoice.status === 'PAID' ? 'Đã thanh toán' : 'Chưa thanh toán'}
+                {currentInvoice.status === 'PAID' ? 'Đã thanh toán' : currentInvoice.status === 'PENDING' ? 'Chờ quản lý xác nhận' : 'Chưa thanh toán'}
               </Text>
             </View>
           </View>
@@ -157,7 +157,7 @@ const TenantDashboardScreen = ({ navigation }: any) => {
         </View>
       )}
 
-      {/* Quick Actions */}
+      {/* Quick Actions: chỉ giữ hành động phù hợp với khách thuê */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>🚀 Thao tác nhanh</Text>
         <View style={styles.actionsGrid}>
@@ -167,14 +167,6 @@ const TenantDashboardScreen = ({ navigation }: any) => {
           >
             <Ionicons name="receipt-outline" size={24} color="#007AFF" />
             <Text style={styles.actionText}>Xem hóa đơn</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => navigation.navigate('Meter')}
-          >
-            <Ionicons name="speedometer-outline" size={24} color="#34C759" />
-            <Text style={styles.actionText}>Chỉ số điện nước</Text>
           </TouchableOpacity>
         </View>
       </View>

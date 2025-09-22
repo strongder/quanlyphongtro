@@ -119,10 +119,10 @@ const TenantTabNavigator = () => {
 
           if (route.name === 'Dashboard') {
             iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'Meter') {
-            iconName = focused ? 'speedometer' : 'speedometer-outline';
           } else if (route.name === 'Invoices') {
             iconName = focused ? 'receipt' : 'receipt-outline';
+          } else if (route.name === 'Notifications') {
+            iconName = focused ? 'notifications' : 'notifications-outline';
           } else if (route.name === 'Settings') {
             iconName = focused ? 'settings' : 'settings-outline';
           } else {
@@ -137,8 +137,8 @@ const TenantTabNavigator = () => {
       })}
     >
       <Tab.Screen name="Dashboard" component={TenantDashboardScreen} options={{ title: 'Trang chủ' }} />
-      <Tab.Screen name="Meter" component={MeterReadingsScreen} options={{ title: 'Chỉ số' }} />
       <Tab.Screen name="Invoices" component={InvoicesScreen} options={{ title: 'Hóa đơn' }} />
+      <Tab.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Thông báo' }} />
       <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: 'Cài đặt' }} />
     </Tab.Navigator>
   );

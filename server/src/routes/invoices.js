@@ -17,12 +17,21 @@ router.post('/generate', (req, res) => {
 
   const rooms = db.prepare('SELECT * FROM Room').all();
   const created = [];
+  const skipped = [];
   const tx = db.transaction(() => {
     for (const room of rooms) {
       const exist = db.prepare('SELECT 1 FROM Invoice WHERE roomId = ? AND ky = ?').get(room.id, ky);
       if (exist) continue;
+      // Chỉ tạo hóa đơn nếu chỉ số đã được khóa
       const reading = db.prepare('SELECT * FROM MeterReading WHERE roomId = ? AND ky = ?').get(room.id, ky);
-      if (!reading) continue;
+      if (!reading) {
+        skipped.push({ roomId: room.id, maPhong: room.maPhong, reason: 'NO_READING' });
+        continue;
+      }
+      if (!reading.locked) {
+        skipped.push({ roomId: room.id, maPhong: room.maPhong, reason: 'READING_NOT_LOCKED' });
+        continue;
+      }
       const dienTieuThu = Math.max(0, (reading.dienSoMoi || 0) - (reading.dienSoCu || 0));
       const nuocTieuThu = Math.max(0, (reading.nuocSoMoi || 0) - (reading.nuocSoCu || 0));
       const tienPhong = room.giaThue;
@@ -41,7 +50,7 @@ router.post('/generate', (req, res) => {
   } catch (e) {
     return res.status(400).json({ error: e.message });
   }
-  res.json({ created });
+  res.json({ created, skipped });
 });
 
 router.get('/', (req, res) => {
@@ -109,9 +118,29 @@ router.get('/:id', (req, res) => {
   res.json(row);
 });
 
+// Tenant request payment confirmation -> set status PENDING
+router.post('/:id/request-payment', (req, res) => {
+  if (req.user?.role !== 'TENANT') {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  const invoice = db.prepare('SELECT * FROM Invoice WHERE id = ?').get(req.params.id);
+  if (!invoice) return res.status(404).json({ error: 'Not found' });
+  if (invoice.status === 'PAID') return res.status(400).json({ error: 'Invoice already paid' });
+  db.prepare("UPDATE Invoice SET status = 'PENDING', requestedAt = datetime('now') WHERE id = ?").run(req.params.id);
+  const updated = db.prepare('SELECT * FROM Invoice WHERE id = ?').get(req.params.id);
+  res.json(updated);
+});
+
 router.patch('/:id/pay', (req, res) => {
+  // Chỉ cho phép quản lý xác nhận thanh toán
+  if (req.user?.role !== 'MANAGER') {
+    return res.status(403).json({ error: 'Access denied' });
+  }
   const existing = db.prepare('SELECT * FROM Invoice WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Not found' });
+  if (existing.status === 'PAID') {
+    return res.status(400).json({ error: 'Invoice already paid' });
+  }
   db.prepare("UPDATE Invoice SET status = 'PAID', paidAt = datetime('now') WHERE id = ?").run(req.params.id);
   const invoice = db.prepare('SELECT * FROM Invoice WHERE id = ?').get(req.params.id);
   res.json(invoice);
