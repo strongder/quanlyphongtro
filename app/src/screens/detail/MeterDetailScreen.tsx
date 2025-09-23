@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { MeterReading, Room } from '../../types';
@@ -30,6 +30,19 @@ const MeterDetailScreen = ({ route, navigation }: any) => {
     });
   }, [reading, room]);
 
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerShown: true,
+      title: 'Chi tiết chỉ số',
+      headerRight: () =>
+        !meterReading?.locked ? (
+          <TouchableOpacity onPress={() => setIsEditing((v) => !v)} style={{ paddingHorizontal: 12 }}>
+            <Ionicons name={isEditing ? 'close' : 'create-outline'} size={24} color="#007AFF" />
+          </TouchableOpacity>
+        ) : null,
+    });
+  }, [navigation, isEditing, meterReading?.locked]);
+
   if (!meterReading || !roomInfo) {
     return (
       <View style={styles.container}>
@@ -51,15 +64,24 @@ const MeterDetailScreen = ({ route, navigation }: any) => {
   const dienTieuThu = Math.max(0, (meterReading.dienSoMoi || 0) - (meterReading.dienSoCu || 0));
   const nuocTieuThu = Math.max(0, (meterReading.nuocSoMoi || 0) - (meterReading.nuocSoCu || 0));
 
+  const parsedForm = useMemo(() => ({
+    dienSoCu: parseInt(form.dienSoCu || '0', 10),
+    dienSoMoi: parseInt(form.dienSoMoi || '0', 10),
+    nuocSoCu: parseInt(form.nuocSoCu || '0', 10),
+    nuocSoMoi: parseInt(form.nuocSoMoi || '0', 10),
+  }), [form]);
+
+  const invalidForm = isEditing && (parsedForm.dienSoMoi < parsedForm.dienSoCu || parsedForm.nuocSoMoi < parsedForm.nuocSoCu);
+  const invalidLock = !isEditing && ((meterReading.dienSoMoi || 0) < (meterReading.dienSoCu || 0) || (meterReading.nuocSoMoi || 0) < (meterReading.nuocSoCu || 0));
+
   const onSave = async () => {
     try {
       setSaving(true);
-      const payload = {
-        dienSoCu: parseInt(form.dienSoCu || '0', 10),
-        dienSoMoi: parseInt(form.dienSoMoi || '0', 10),
-        nuocSoCu: parseInt(form.nuocSoCu || '0', 10),
-        nuocSoMoi: parseInt(form.nuocSoMoi || '0', 10),
-      };
+      if (invalidForm) {
+        Alert.alert('Lỗi', 'Số mới phải lớn hơn hoặc bằng số cũ');
+        return;
+      }
+      const payload = parsedForm;
       const updated = await meterService.updateMeterReading(meterReading.id, payload);
       setMeterReading(updated);
       setIsEditing(false);
@@ -74,6 +96,10 @@ const MeterDetailScreen = ({ route, navigation }: any) => {
   const onLock = async () => {
     try {
       setSaving(true);
+      if (invalidLock) {
+        Alert.alert('Lỗi', 'Số mới phải lớn hơn hoặc bằng số cũ trước khi khóa');
+        return;
+      }
       const updated = await meterService.lockMeterReading(meterReading.id);
       setMeterReading(updated);
       Alert.alert('Thành công', 'Đã khóa chỉ số');
@@ -86,18 +112,6 @@ const MeterDetailScreen = ({ route, navigation }: any) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#007AFF" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Chi tiết chỉ số</Text>
-        {!meterReading.locked && (
-          <TouchableOpacity onPress={() => setIsEditing(!isEditing)} style={styles.editButton}>
-            <Ionicons name={isEditing ? 'close' : 'create-outline'} size={24} color="#007AFF" />
-          </TouchableOpacity>
-        )}
-      </View>
-
       <ScrollView style={styles.content}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Thông tin phòng</Text>
@@ -185,12 +199,12 @@ const MeterDetailScreen = ({ route, navigation }: any) => {
               <TouchableOpacity style={[styles.actionBtn, styles.cancel]} onPress={() => setIsEditing(false)}>
                 <Text style={styles.btnText}>Hủy</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.actionBtn, styles.save]} onPress={onSave} disabled={saving}>
+              <TouchableOpacity style={[styles.actionBtn, styles.save, invalidForm && { opacity: 0.6 }]} onPress={onSave} disabled={saving || invalidForm}>
                 <Text style={styles.btnText}>{saving ? 'Đang lưu...' : 'Lưu'}</Text>
               </TouchableOpacity>
             </>
           ) : (
-            <TouchableOpacity style={[styles.actionBtn, styles.lock]} onPress={onLock} disabled={saving}>
+            <TouchableOpacity style={[styles.actionBtn, styles.lock, (invalidLock || saving) && { opacity: 0.6 }]} onPress={onLock} disabled={saving || invalidLock}>
               <Text style={styles.btnText}>{saving ? 'Đang khóa...' : 'Khóa chỉ số'}</Text>
             </TouchableOpacity>
           )}
