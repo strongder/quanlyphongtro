@@ -1,3 +1,4 @@
+require('dotenv').config(); // Thêm dòng này đầu file
 const app = require('./src/app');
 
 const PORT = process.env.PORT || 3000;

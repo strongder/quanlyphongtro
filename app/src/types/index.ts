@@ -67,7 +67,26 @@ export interface Invoice {
   paidAt?: string;
   requestedAt?: string;
 }
+export interface PaymentResponse {
+  code: string;
+  message: string;
+  transactionId: string;
+  paymentUrl: string;
+}
 
+export interface PaymentStatusResponse {
+  invoiceId: number;
+  invoiceStatus: string;
+  payment?: {
+    id: number;
+    transactionId: string;
+    amount: number;
+    status: string;
+    responseCode: string;
+    paidAt: string;
+    createdAt: string;
+  };
+}
 export interface AuthResponse {
   token: string;
   user: User;

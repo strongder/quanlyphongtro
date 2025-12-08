@@ -10,6 +10,7 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
+import * as LocalAuthentication from 'expo-local-authentication';
 import { useAuth } from '../../contexts/AuthContext';
 
 const LoginScreen = ({ navigation }: any) => {
@@ -17,6 +18,25 @@ const LoginScreen = ({ navigation }: any) => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
+
+
+  const authenticateWithBiometrics = async () => {
+  // Kiểm tra thiết bị hỗ trợ vân tay / Face ID
+  const hasHardware = await LocalAuthentication.hasHardwareAsync();
+  const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+  if (!hasHardware || !isEnrolled) {
+    Alert.alert('Thông báo', 'Thiết bị không hỗ trợ hoặc chưa đăng ký vân tay');
+    return false;
+  }
+
+  const result = await LocalAuthentication.authenticateAsync({
+    promptMessage: 'Xác thực vân tay để đăng nhập',
+    fallbackLabel: 'Dùng mật khẩu',
+  });
+
+  return result.success;
+};
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
@@ -27,6 +47,7 @@ const LoginScreen = ({ navigation }: any) => {
     setIsLoading(true);
     try {
       await login(username.trim(), password);
+      
     } catch (error: any) {
       const errorData = error.response?.data;
       if (errorData?.status === 'PENDING') {

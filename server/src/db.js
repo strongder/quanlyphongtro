@@ -82,6 +82,17 @@ function runMigrations() {
       UNIQUE(roomId, ky)
     );
 
+    CREATE TABLE IF NOT EXISTS Payment (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      invoiceId INTEGER NOT NULL REFERENCES Invoice(id) ON DELETE CASCADE,
+      transactionId TEXT NOT NULL UNIQUE,
+      amount REAL NOT NULL,
+      status TEXT NOT NULL CHECK(status IN ('SUCCESS','FAILED','CANCELLED')) DEFAULT 'FAILED',
+      responseCode TEXT,
+      paidAt TEXT,
+      createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS Setting (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       key TEXT NOT NULL UNIQUE,
@@ -92,6 +103,8 @@ function runMigrations() {
     CREATE INDEX IF NOT EXISTS idx_tenant_phone ON Tenant(soDienThoai);
     CREATE INDEX IF NOT EXISTS idx_invoice_ky_status ON Invoice(ky, status);
     CREATE INDEX IF NOT EXISTS idx_meter_room_ky ON MeterReading(roomId, ky);
+    CREATE INDEX IF NOT EXISTS idx_payment_invoice ON Payment(invoiceId);
+    CREATE INDEX IF NOT EXISTS idx_payment_transaction ON Payment(transactionId);
   `);
 }
 

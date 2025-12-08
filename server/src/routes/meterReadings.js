@@ -45,15 +45,31 @@ router.patch('/:id', (req, res) => {
   const updated = db.prepare('SELECT * FROM MeterReading WHERE id = ?').get(req.params.id);
   res.json(updated);
 });
-
+// sau khi khoa thi luu vao hoa don
 router.post('/:id/lock', (req, res) => {
   const r = db.prepare('SELECT * FROM MeterReading WHERE id = ?').get(req.params.id);
   if (!r) return res.status(404).json({ error: 'Not found' });
   db.prepare('UPDATE MeterReading SET locked = 1 WHERE id = ?').run(req.params.id);
   const updated = db.prepare('SELECT * FROM MeterReading WHERE id = ?').get(req.params.id);
   res.json(updated);
+  // sau khi khoa thi luu vao hoa don
+  const room = db.prepare('SELECT * FROM Room WHERE id = ?').get(r.roomId);
+  const donGiaDien = db.prepare('SELECT value FROM Setting WHERE key = ?').get('donGiaDien').value;
+  const donGiaNuoc = db.prepare('SELECT value FROM Setting WHERE key = ?').get('donGiaNuoc').value;
+  const dienTieuThu = Math.max(0, (r.dienSoMoi || 0) - (r.dienSoCu || 0));
+  const nuocTieuThu = Math.max(0, (r.nuocSoMoi || 0) - (r.nuocSoCu || 0));
+  const tienPhong = room.giaThue;
+  const tongCong = tienPhong + dienTieuThu * donGiaDien + nuocTieuThu * donGiaNuoc;
+  db.prepare(
+    'INSERT INTO Invoice (roomId, ky, tienPhong, dienTieuThu, nuocTieuThu, donGiaDien, donGiaNuoc, tongCong) VALUES (?,?,?,?,?,?,?,?)'
+  ).run(r.roomId, r.ky, tienPhong, dienTieuThu, nuocTieuThu, donGiaDien, donGiaNuoc, tongCong);
 });
-
+// api lấy chi số theo phòng và kỳ gần nhất ( ví dụ : tháng 8: số điện:90, số nước:50; tháng 9 không sử dung thì tháng 10 vẫn lấy số tháng 8 để tính tiền)
+router.get('/latest/:roomId', (req, res) => {
+  const { roomId } = req.params;
+  const reading = db.prepare('SELECT * FROM MeterReading WHERE roomId = ? ORDER BY ky DESC LIMIT 1').get(roomId);
+  res.json(reading);
+});
 module.exports = router;
 
 

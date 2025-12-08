@@ -89,70 +89,53 @@ const CustomTabBar = ({ state, descriptors, navigation }: any) => {
   );
 };
 
-const ManagerTabNavigator = () => {
-  return (
-    <Tab.Navigator
-      tabBar={(props) => <CustomTabBar {...props} />}
-      screenOptions={{
-        headerShown: false,
-      }}
-    >
-      <Tab.Screen name="Dashboard" component={DashboardScreen} />
-      <Tab.Screen name="Rooms" component={RoomsScreen} />
-      <Tab.Screen name="Tenants" component={TenantsScreen} />
-      <Tab.Screen name="TenantApproval" component={TenantApprovalScreen} />
-      <Tab.Screen name="Meter" component={MeterReadingsScreen} />
-      <Tab.Screen name="Invoices" component={InvoicesScreen} />
-      <Tab.Screen name="Reports" component={ReportsScreen} />
-      <Tab.Screen name="Notifications" component={NotificationsScreen} />
-      <Tab.Screen name="Settings" component={SettingsScreen} />
-    </Tab.Navigator>
-  );
-};
+const ManagerTabNavigator = () => (
+  <Tab.Navigator
+    tabBar={(props) => <CustomTabBar {...props} />}
+    screenOptions={{ headerShown: true }}
+  >
+    <Tab.Screen name="Dashboard" component={DashboardScreen} />
+    <Tab.Screen name="Rooms" component={RoomsScreen} />
+    <Tab.Screen name="Tenants" component={TenantsScreen} />
+    <Tab.Screen name="TenantApproval" component={TenantApprovalScreen} />
+    <Tab.Screen name="Meter" component={MeterReadingsScreen} />
+    <Tab.Screen name="Invoices" component={InvoicesScreen} />
+    <Tab.Screen name="Reports" component={ReportsScreen} />
+    <Tab.Screen name="Notifications" component={NotificationsScreen} />
+    <Tab.Screen name="Settings" component={SettingsScreen} />
+  </Tab.Navigator>
+);
 
-const TenantTabNavigator = () => {
-  return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName: keyof typeof Ionicons.glyphMap;
-
-          if (route.name === 'Dashboard') {
-            iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'Invoices') {
-            iconName = focused ? 'receipt' : 'receipt-outline';
-          } else if (route.name === 'Notifications') {
-            iconName = focused ? 'notifications' : 'notifications-outline';
-          } else if (route.name === 'Settings') {
-            iconName = focused ? 'settings' : 'settings-outline';
-          } else {
-            iconName = 'help-outline';
-          }
-
-          return <Ionicons name={iconName} size={size} color={color} />;
-        },
-        tabBarActiveTintColor: '#34C759',
-        tabBarInactiveTintColor: 'gray',
-        headerShown: false,
-      })}
-    >
-      <Tab.Screen name="Dashboard" component={TenantDashboardScreen} options={{ title: 'Trang chủ' }} />
-      <Tab.Screen name="Invoices" component={InvoicesScreen} options={{ title: 'Hóa đơn' }} />
-      <Tab.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Thông báo' }} />
-      <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: 'Cài đặt' }} />
-    </Tab.Navigator>
-  );
-};
+const TenantTabNavigator = () => (
+  <Tab.Navigator
+    screenOptions={({ route }) => ({
+      tabBarIcon: ({ focused, color, size }) => {
+        let iconName: keyof typeof Ionicons.glyphMap;
+        if (route.name === 'Dashboard') iconName = focused ? 'home' : 'home-outline';
+        else if (route.name === 'Invoices') iconName = focused ? 'receipt' : 'receipt-outline';
+        else if (route.name === 'Notifications') iconName = focused ? 'notifications' : 'notifications-outline';
+        else if (route.name === 'Settings') iconName = focused ? 'settings' : 'settings-outline';
+        else iconName = 'help-outline';
+        return <Ionicons name={iconName} size={size} color={color} />;
+      },
+      tabBarActiveTintColor: '#34C759',
+      tabBarInactiveTintColor: 'gray',
+      headerShown: true,
+    })}
+  >
+    <Tab.Screen name="Dashboard" component={TenantDashboardScreen} options={{ title: 'Trang chủ' }} />
+    <Tab.Screen name="Invoices" component={InvoicesScreen} options={{ title: 'Hóa đơn' }} />
+    <Tab.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Thông báo' }} />
+    <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: 'Cài đặt' }} />
+  </Tab.Navigator>
+);
 
 const AppNavigator = () => {
   const { user, isLoading } = useAuth();
-
-  if (isLoading) {
-    return null; // Hoặc loading screen
-  }
+  if (isLoading) return null;
 
   return (
-    <NavigationContainer>
+    <NavigationContainer fallback={<View style={{ flex: 1, backgroundColor: '#fff' }} />}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {user ? (
           <>
@@ -160,26 +143,10 @@ const AppNavigator = () => {
               name="MainTabs" 
               component={user.role === 'MANAGER' ? ManagerTabNavigator : TenantTabNavigator} 
             />
-            <Stack.Screen 
-              name="RoomDetail" 
-              component={RoomDetailScreen} 
-              options={{ title: 'Chi tiết phòng', headerShown: true }} 
-            />
-            <Stack.Screen 
-              name="TenantDetail" 
-              component={TenantDetailScreen} 
-              options={{ title: 'Chi tiết khách thuê', headerShown: true }} 
-            />
-            <Stack.Screen 
-              name="InvoiceDetail" 
-              component={InvoiceDetailScreen} 
-              options={{ title: 'Chi tiết hóa đơn', headerShown: true }} 
-            />
-            <Stack.Screen 
-              name="MeterDetail" 
-              component={MeterDetailScreen} 
-              options={{ title: 'Chi tiết chỉ số', headerShown: true }} 
-            />
+            <Stack.Screen name="RoomDetail" component={RoomDetailScreen} options={{ title: 'Chi tiết phòng', headerShown: true }} />
+            <Stack.Screen name="TenantDetail" component={TenantDetailScreen} options={{ title: 'Chi tiết khách thuê', headerShown: true }} />
+            <Stack.Screen name="InvoiceDetail" component={InvoiceDetailScreen} options={{ title: 'Chi tiết hóa đơn', headerShown: true }} />
+            <Stack.Screen name="MeterDetail" component={MeterDetailScreen} options={{ title: 'Chi tiết chỉ số', headerShown: true }} />
           </>
         ) : (
           <>

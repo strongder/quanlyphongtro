@@ -1,9 +1,15 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
-import { AuthResponse, User, Room, Tenant, MeterReading, Invoice } from '../types';
+import { AuthResponse, User, Room, Tenant, MeterReading, Invoice, PaymentStatusResponse } from '../types';
+import * as WebBrowser from 'expo-web-browser';
 
 // Sử dụng IP thay vì localhost để app có thể kết nối từ thiết bị thật
-const API_BASE_URL = 'http://192.130.38.110:3000/api';
+// 192.168.5.231
+//  192.130.38.115
+//192.168.5.41
+// https://calls-comply-projects-dealtime.trycloudflare.com
+const API_BASE_URL = 'https://calls-comply-projects-dealtime.trycloudflare.com/api';
+
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -65,6 +71,12 @@ export const roomService = {
   async getRooms(status?: string): Promise<Room[]> {
     const params = status ? { status } : {};
     const response = await api.get('/rooms', { params });
+    return response.data;
+  },
+
+  async getMyRooms(): Promise<Room> {
+    const response = await api.get('/rooms/me/tenant');
+    console.log('Fetched my room for tenant:', response.data);
     return response.data;
   },
 
@@ -148,6 +160,10 @@ export const meterService = {
     const response = await api.post(`/meter-readings/${id}/lock`);
     return response.data;
   },
+  async fetchLatestMeterReading(roomId: number): Promise<MeterReading> {
+    const response = await api.get(`/meter-readings/latest/${roomId}`);
+    return response.data;
+  }
 };
 
 export const invoiceService = {
@@ -156,12 +172,20 @@ export const invoiceService = {
     return response.data;
   },
 
-  async getInvoices(status?: string, roomId?: number, ky?: string): Promise<Invoice[]> {
+  async getInvoices(status?: string, ky?: string): Promise<Invoice[]> {
     const params: any = {};
     if (status) params.status = status;
-    if (roomId) params.roomId = roomId;
     if (ky) params.ky = ky;
     const response = await api.get('/invoices', { params });
+    return response.data;
+  },
+
+  // get me for tenant
+  async getMyInvoices(status?: string, ky?: string): Promise<Invoice[]> {
+    const params: any = {};
+    if (status) params.status = status;
+    if (ky) params.ky = ky;
+    const response = await api.get('/invoices/me', { params });
     return response.data;
   },
 
@@ -234,5 +258,34 @@ export const tenantApprovalService = {
   async rejectTenant(userId: number, reason: string): Promise<any> {
     const response = await api.post(`/tenant-approval/${userId}/reject`, { reason });
     return response.data;
+  },
+};
+
+export const vnpayService = {
+  async createPaymentUrl(invoiceId: number, bankCode?: string): Promise<PaymentResponse> {
+    const response = await api.post('/payments/vnpay/create', {
+      invoiceId,
+      bankCode,
+      // Backend sẽ tự thêm returnUrl từ config
+    });
+    return response.data;
+  },
+
+  async checkPaymentStatus(invoiceId: number): Promise<PaymentStatusResponse> {
+    const response = await api.get(`/payments/vnpay/status/${invoiceId}`);
+    return response.data;
+  },
+
+  /**
+   * Mở link thanh toán VNPay
+   */
+  async openPaymentUrl(paymentUrl: string): Promise<boolean> {
+    try {
+      const result = await WebBrowser.openBrowserAsync(paymentUrl);
+      return result.type === 'opened';
+    } catch (error) {
+      console.error('Error opening payment URL:', error);
+      return false;
+    }
   },
 };

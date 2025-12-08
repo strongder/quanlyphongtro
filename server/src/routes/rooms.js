@@ -1,5 +1,7 @@
 const express = require('express');
 const { db } = require('../db');
+const { authRequired } = require('../middlewares/auth');
+const { decryptTenantList } = require('../utils/encryption');
 const router = express.Router();
 
 router.get('/', (req, res) => {
@@ -42,7 +44,8 @@ router.get('/', (req, res) => {
       WHERE rt.roomId = ? AND rt.ngayRa IS NULL
       ORDER BY rt.isPrimaryTenant DESC, t.id ASC
     `).all(room.id);
-    return { ...room, currentTenants: tenants };
+     const decryptedTenants = decryptTenantList(tenants);
+    return { ...room, currentTenants: decryptedTenants };
   });
   res.json(result);
 });
@@ -73,19 +76,38 @@ router.get('/:id', (req, res) => {
   res.json({ ...room, currentTenants: tenants });
 });
 
-// Lấy tenants đang ở trong 1 phòng (tiện cho UI gọi riêng)
-router.get('/:id/tenants', (req, res) => {
-  const room = db.prepare('SELECT id FROM Room WHERE id = ?').get(req.params.id);
-  if (!room) return res.status(404).json({ error: 'Not found' });
-  const tenants = db.prepare(`
-    SELECT t.id, t.hoTen, t.soDienThoai, u.username, rt.isPrimaryTenant, rt.ngayVao
-    FROM RoomTenant rt
-    JOIN Tenant t ON t.id = rt.tenantId
-    JOIN User u ON u.id = t.userId
-    WHERE rt.roomId = ? AND rt.ngayRa IS NULL
-    ORDER BY rt.isPrimaryTenant DESC, t.id ASC
-  `).all(req.params.id);
-  res.json(tenants);
+// Lấy phòng của tenant hiện tại
+router.get('/me/tenant', authRequired, (req, res) => {
+  const currentUser = req.user;
+  if (!currentUser) {
+    return res.status(401).json({ error: 'Unauthenticated' });
+  }
+  const userId = currentUser.userId; // JWT lưu userId, không phải id
+  const userRole = currentUser.role;
+  
+  // Chỉ tenant mới được sử dụng endpoint này
+  if (userRole !== 'TENANT') {
+    return res.status(403).json({ error: 'This endpoint is for tenants only' });
+  }
+  
+  // Tìm tenant record của user này
+  const tenant = db.prepare('SELECT id FROM Tenant WHERE userId = ?').get(userId);
+  if (!tenant) {
+    return res.json([]); // User chưa có tenant
+  }
+  
+  // Tìm phòng mà khách thuê đang ở
+  const room = db.prepare(`
+    SELECT r.* FROM Room r
+    JOIN RoomTenant rt ON rt.roomId = r.id
+    WHERE rt.tenantId = ? AND rt.ngayRa IS NULL
+  `).get(tenant.id);
+  
+  if (!room) {
+    return res.json([]); // Tenant chưa thuê phòng nào
+  }
+  
+  res.json([room]);
 });
 
 router.patch('/:id', (req, res) => {

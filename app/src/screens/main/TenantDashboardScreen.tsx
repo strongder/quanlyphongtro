@@ -19,21 +19,33 @@ const TenantDashboardScreen = ({ navigation }: any) => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const loadData = async () => {
+
+  const loadRoomCurrently = async () => {
     try {
-      const [roomsData, invoicesData] = await Promise.all([
-        roomService.getRooms(),
-        invoiceService.getInvoices()
-      ]);
-      
-      setRoom(roomsData[0] || null); // Khách thuê chỉ có 1 phòng
-      setInvoices(invoicesData);
-    } catch (error) {
-      console.log('Error loading data:', error);
-      Alert.alert('Lỗi', 'Không thể tải dữ liệu');
-    } finally {
-      setIsLoading(false);
+      const rooms = await roomService.getMyRooms();
+      console.log('Loaded rooms for tenant:', rooms);
+      setRoom((rooms as any)[0] || null); // Khách thuê chỉ có 1 phòng
     }
+    catch (error) {
+      console.log('Error loading room:', error);
+      Alert.alert('Lỗi', 'Không thể tải thông tin phòng');
+    }
+  };
+  const loadInvoiceByMe = async () => {
+    try {
+      const invoicesData = await invoiceService.getMyInvoices();
+      setInvoices(invoicesData);
+    }
+    catch (error) {
+      console.log('Error loading invoices:', error);
+      Alert.alert('Lỗi', 'Không thể tải thông tin hóa đơn');
+    }
+  };
+
+  const loadData = async () => {
+    setIsLoading(true);
+    await Promise.all([loadRoomCurrently(), loadInvoiceByMe()]);
+    setIsLoading(false);
   };
 
   useEffect(() => {
@@ -84,11 +96,11 @@ const TenantDashboardScreen = ({ navigation }: any) => {
           <Text style={styles.cardTitle}>🏠 Thông tin phòng</Text>
           <View style={styles.infoRow}>
             <Text style={styles.label}>Mã phòng:</Text>
-            <Text style={styles.value}>{room.maPhong}</Text>
+            <Text style={styles.value}>{room?.maPhong}</Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.label}>Giá thuê:</Text>
-            <Text style={styles.value}>{room.giaThue.toLocaleString()}đ/tháng</Text>
+            <Text style={styles.value}>{room?.giaThue?.toLocaleString()}đ/tháng</Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.label}>Trạng thái:</Text>
@@ -115,7 +127,7 @@ const TenantDashboardScreen = ({ navigation }: any) => {
           <View style={styles.invoiceInfo}>
             <View style={styles.infoRow}>
               <Text style={styles.label}>Tiền phòng:</Text>
-              <Text style={styles.value}>{currentInvoice.tienPhong.toLocaleString()}đ</Text>
+              <Text style={styles.value}>{currentInvoice?.tienPhong?.toLocaleString()}đ</Text>
             </View>
             <View style={styles.infoRow}>
               <Text style={styles.label}>Điện tiêu thụ:</Text>
@@ -128,7 +140,7 @@ const TenantDashboardScreen = ({ navigation }: any) => {
             <View style={styles.infoRow}>
               <Text style={styles.label}>Tổng cộng:</Text>
               <Text style={[styles.value, styles.totalAmount]}>
-                {currentInvoice.tongCong.toLocaleString()}đ
+                {currentInvoice?.tongCong?.toLocaleString()}đ
               </Text>
             </View>
             <View style={styles.infoRow}>
@@ -145,17 +157,17 @@ const TenantDashboardScreen = ({ navigation }: any) => {
       )}
 
       {/* Hóa đơn chưa thanh toán */}
-      {unpaidInvoices.length > 0 && (
+      {/* {unpaidInvoices.length > 0 && (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>⚠️ Hóa đơn chưa thanh toán</Text>
           {unpaidInvoices.map((invoice) => (
             <View key={invoice.id} style={styles.invoiceItem}>
               <Text style={styles.invoiceKy}>Tháng {invoice.ky}</Text>
-              <Text style={styles.invoiceAmount}>{invoice.tongCong.toLocaleString()}đ</Text>
+              <Text style={styles.invoiceAmount}>{invoice?.tongCong?.toLocaleString()}đ</Text>
             </View>
           ))}
         </View>
-      )}
+      )} */}
 
       {/* Quick Actions: chỉ giữ hành động phù hợp với khách thuê */}
       <View style={styles.card}>
@@ -288,6 +300,9 @@ const styles = StyleSheet.create({
     color: '#333',
     marginTop: 8,
     textAlign: 'center',
+  },
+  pendingText: {
+    color: '#FF9500',
   },
 });
 

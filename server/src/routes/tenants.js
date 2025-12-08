@@ -1,5 +1,6 @@
 const express = require('express');
 const { db } = require('../db');
+const { encryptTenant, decryptTenant, decryptTenantList } = require('../utils/encryption');
 const router = express.Router();
 
 router.get('/', (req, res) => {
@@ -7,10 +8,12 @@ router.get('/', (req, res) => {
   if (query) {
     const q = `%${query}%`;
     const rows = db.prepare('SELECT * FROM Tenant WHERE hoTen LIKE ? OR soDienThoai LIKE ? ORDER BY id DESC').all(q, q);
-    return res.json(rows);
+    const decryptedRows = decryptTenantList(rows);
+    return res.json(decryptedRows);
   }
   const rows = db.prepare('SELECT * FROM Tenant ORDER BY id DESC').all();
-  res.json(rows);
+  const decryptedRows = decryptTenantList(rows);
+  res.json(decryptedRows);
 });
 
 router.post('/', (req, res) => {
@@ -24,25 +27,47 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: 'User already has tenant record' });
   }
   
-  const info = db.prepare('INSERT INTO Tenant (userId, hoTen, soDienThoai, cccd) VALUES (?,?,?,?)').run(userId, hoTen, soDienThoai || null, cccd || null);
+  // Mã hóa dữ liệu nhạy cảm
+  const encryptedData = encryptTenant({ soDienThoai, cccd });
+  
+  const info = db.prepare('INSERT INTO Tenant (userId, hoTen, soDienThoai, cccd) VALUES (?,?,?,?)').run(
+    userId, 
+    hoTen, 
+    encryptedData.soDienThoai || null, 
+    encryptedData.cccd || null
+  );
+  
   const tenant = db.prepare('SELECT * FROM Tenant WHERE id = ?').get(info.lastInsertRowid);
-  res.status(201).json(tenant);
+  const decryptedTenant = decryptTenant(tenant);
+  res.status(201).json(decryptedTenant);
 });
 
 router.get('/:id', (req, res) => {
   const row = db.prepare('SELECT * FROM Tenant WHERE id = ?').get(req.params.id);
   if (!row) return res.status(404).json({ error: 'Not found' });
-  res.json(row);
+  const decryptedRow = decryptTenant(row);
+  res.json(decryptedRow);
 });
 
 router.patch('/:id', (req, res) => {
   const { hoTen, soDienThoai, cccd } = req.body;
   const existing = db.prepare('SELECT * FROM Tenant WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Not found' });
+  
+  // Mã hóa dữ liệu nhạy cảm nếu có
+  const encryptedData = encryptTenant({ soDienThoai, cccd });
+  
   db.prepare('UPDATE Tenant SET hoTen = COALESCE(?, hoTen), soDienThoai = COALESCE(?, soDienThoai), cccd = COALESCE(?, cccd) WHERE id = ?')
-    .run(hoTen ?? null, soDienThoai ?? null, cccd ?? null, req.params.id);
+    .run(
+      hoTen ?? null, 
+      encryptedData.soDienThoai ?? null, 
+      encryptedData.cccd ?? null, 
+      req.params.id
+    );
+  
   const tenant = db.prepare('SELECT * FROM Tenant WHERE id = ?').get(req.params.id);
-  res.json(tenant);
+  const decryptedTenant = decryptTenant(tenant);
+  res.json(decryptedTenant);
 });
 
 router.delete('/:id', (req, res) => {

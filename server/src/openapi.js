@@ -67,6 +67,14 @@ module.exports = {
       patch: { tags: ['Rooms'], summary: 'Cập nhật phòng', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], requestBody: { required: true, content: { 'application/json': { schema: { $ref: '#/components/schemas/Room' } } } }, responses: { '200': { description: 'OK' } } },
       delete: { tags: ['Rooms'], summary: 'Xóa phòng', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { '200': { description: 'OK' }, '404': { description: 'Not found' } } },
     },
+    //rooms/me
+    '/rooms/me/tenant': {
+      get: {
+        tags: ['Rooms'],
+        summary: 'Lấy phòng của tenant hiện tại',
+        responses: { '200': { description: 'OK', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Room' } } } } } },
+      },
+    },
 
     // Tenants
     '/tenants': {
@@ -156,18 +164,45 @@ module.exports = {
     '/meter-readings/{id}/lock': {
       post: { tags: ['MeterReadings'], summary: 'Khóa chỉ số', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { '200': { description: 'OK' } } },
     },
-
-    // Invoices
-    '/invoices/generate': {
-      post: {
-        tags: ['Invoices'],
-        summary: 'Tạo hóa đơn hàng loạt theo kỳ',
-        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { ky: { type: 'string' } }, required: ['ky'] } } } },
+    '/meter-readings/latest/{roomId}': {
+      get: {
+        tags: ['MeterReadings'],
+        summary: 'Lấy chỉ số gần nhất của phòng',
+        parameters: [{ name: 'roomId', in: 'path', required: true, schema: { type: 'integer' } }],
         responses: { '200': { description: 'OK' } },
       },
     },
+
+    // Invoices
+    // '/invoices/generate': {
+    //   post: {
+    //     tags: ['Invoices'],
+    //     summary: 'Tạo hóa đơn hàng loạt theo kỳ',
+    //     requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { ky: { type: 'string' } }, required: ['ky'] } } } },
+    //     responses: { '200': { description: 'OK' } },
+    //   },
+    // },
     '/invoices': {
-      get: { tags: ['Invoices'], summary: 'Danh sách hóa đơn', parameters: [{ name: 'status', in: 'query', schema: { type: 'string', enum: ['PAID', 'UNPAID'] } }, { name: 'roomId', in: 'query', schema: { type: 'integer' } }, { name: 'ky', in: 'query', schema: { type: 'string' } }], responses: { '200': { description: 'OK' } } },
+      get: {
+        tags: ['Invoices'],
+        summary: 'Danh sách hóa đơn',
+        parameters: [
+          { name: 'status', in: 'query', schema: { type: 'string', enum: ['PAID', 'UNPAID'] } },
+          { name: 'ky', in: 'query', schema: { type: 'string' } },
+        ],
+        responses: { '200': { description: 'OK' } },
+      },
+    },
+    '/invoices/me': {
+      get: {
+        tags: ['Invoices'],
+        summary: 'Danh sách hóa đơn của tenant hiện tại',
+        parameters: [
+          { name: 'status', in: 'query', schema: { type: 'string', enum: ['PAID', 'UNPAID'] } },
+          { name: 'ky', in: 'query', schema: { type: 'string' } },
+        ],
+        responses: { '200': { description: 'OK' } },
+      },
     },
     '/invoices/{id}': {
       get: { tags: ['Invoices'], summary: 'Chi tiết hóa đơn', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }], responses: { '200': { description: 'OK' }, '404': { description: 'Not found' } } },
@@ -193,6 +228,56 @@ module.exports = {
     // Notifications
     '/notifications/test': {
       post: { tags: ['Notifications'], summary: 'Gửi thông báo test (giả lập)', requestBody: { required: false, content: { 'application/json': { schema: { type: 'object', properties: { to: { type: 'string' }, title: { type: 'string' }, body: { type: 'string' } } } } } }, responses: { '200': { description: 'OK' } } },
+    },
+
+    // Payments
+    '/payments/vnpay/create': {
+      post: {
+        tags: ['Payments'],
+        summary: 'Tạo link thanh toán VNPay',
+        description: 'Tạo giao dịch thanh toán VNPay cho hóa đơn',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  invoiceId: { type: 'integer', description: 'ID của hóa đơn cần thanh toán' },
+                  bankCode: { type: 'string', description: 'Mã ngân hàng (optional)' }
+                },
+                required: ['invoiceId']
+              }
+            }
+          }
+        },
+        responses: {
+          '200': { description: 'OK', content: { 'application/json': { schema: { type: 'object', properties: { code: { type: 'string' }, message: { type: 'string' }, transactionId: { type: 'string' }, paymentUrl: { type: 'string' } } } } } },
+          '400': { description: 'Bad request' },
+          '404': { description: 'Invoice not found' }
+        }
+      }
+    },
+    '/payments/vnpay/callback': {
+      get: {
+        tags: ['Payments'],
+        summary: 'VNPay callback (IPN)',
+        description: 'Endpoint nhận callback từ VNPay khi khách thanh toán',
+        responses: {
+          '200': { description: 'OK' }
+        }
+      }
+    },
+    '/payments/vnpay/status/{invoiceId}': {
+      get: {
+        tags: ['Payments'],
+        summary: 'Kiểm tra trạng thái thanh toán',
+        parameters: [{ name: 'invoiceId', in: 'path', required: true, schema: { type: 'integer' } }],
+        responses: {
+          '200': { description: 'OK' },
+          '404': { description: 'Invoice not found' }
+        }
+      }
     },
   },
   components: {

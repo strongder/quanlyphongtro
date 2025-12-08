@@ -388,6 +388,36 @@ const styles = StyleSheet.create({
     color: '#FF3B30',
     marginTop: 16,
   },
+  actionBar: {
+    flexDirection: 'row',
+    padding: 16,
+    backgroundColor: 'white',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  actionBtn: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center', 
+    justifyContent: 'center',
+  },
+  cancel: {
+    backgroundColor: '#8a8a8aff',
+    marginRight: 8,
+  },
+  save: {
+    backgroundColor: '#007AFF',
+    marginLeft: 8,
+  },
+  lock: {
+    backgroundColor: '#FF9500',
+  },
+  btnText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });
 
 export default MeterDetailScreen;

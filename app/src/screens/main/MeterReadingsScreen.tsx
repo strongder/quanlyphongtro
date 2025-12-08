@@ -50,6 +50,15 @@ const MeterReadingsScreen = ({ navigation }: any) => {
       setIsLoading(false);
     }
   };
+  const handleFetchLatestMeterReading = async (roomId: number): Promise<MeterReading | null> => {
+    try {
+      const readingsData = await meterService.fetchLatestMeterReading(roomId);
+      return readingsData || null;
+    } catch (error) {
+      console.log('Error fetching nearest meter reading:', error);
+      return null;
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -93,24 +102,25 @@ const MeterReadingsScreen = ({ navigation }: any) => {
   };
 
   const handleRoomSelect = (room: Room) => {
+    // Tự động điền chỉ số cũ từ chỉ số của kỳ trước nếu có
+    handleFetchLatestMeterReading(room.id).then((lastReading) => {
+      if (lastReading) {
+        setFormData({
+          dienSoCu: lastReading.dienSoMoi?.toString() || '',
+          dienSoMoi: '',
+          nuocSoCu: lastReading.nuocSoMoi?.toString() || '',
+          nuocSoMoi: '',
+        });
+      } else {
+        setFormData({
+          dienSoCu: '0',
+          dienSoMoi: ``,
+          nuocSoCu: '0',
+          nuocSoMoi: '',
+        });
+      }
+    });
     setSelectedRoom(room);
-    // Tìm chỉ số cũ của phòng này
-    const existingReading = readings.find(r => r.roomId === room.id);
-    if (existingReading) {
-      setFormData({
-        dienSoCu: existingReading.dienSoMoi?.toString() || '',
-        dienSoMoi: '',
-        nuocSoCu: existingReading.nuocSoMoi?.toString() || '',
-        nuocSoMoi: '',
-      });
-    } else {
-      setFormData({
-        dienSoCu: '',
-        dienSoMoi: '',
-        nuocSoCu: '',
-        nuocSoMoi: '',
-      });
-    }
   };
 
   const handleSubmitReading = async () => {
@@ -368,9 +378,10 @@ const MeterReadingsScreen = ({ navigation }: any) => {
                   <TextInput
                     style={styles.input}
                     value={formData.dienSoCu}
-                    onChangeText={(text) => setFormData({...formData, dienSoCu: text})}
+                    editable={false}
                     keyboardType="numeric"
                     placeholder="Nhập chỉ số cũ"
+                  
                   />
                 </View>
                 <View style={styles.inputGroup}>
@@ -394,7 +405,8 @@ const MeterReadingsScreen = ({ navigation }: any) => {
                   <TextInput
                     style={styles.input}
                     value={formData.nuocSoCu}
-                    onChangeText={(text) => setFormData({...formData, nuocSoCu: text})}
+                    editable={false}
+                    // onChangeText={(text) => setFormData({...formData, nuocSoCu: text})}
                     keyboardType="numeric"
                     placeholder="Nhập chỉ số cũ"
                   />
@@ -451,7 +463,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e0e0e0',
   },
   title: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
   },
