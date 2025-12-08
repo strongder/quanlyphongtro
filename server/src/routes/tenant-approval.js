@@ -1,6 +1,7 @@
 const express = require('express');
 const { db } = require('../db');
 const { authRequired } = require('../middlewares/auth');
+const { decryptUser, decryptTenant } = require('../utils/encryption');
 const router = express.Router();
 
 // Lấy danh sách tenant chờ duyệt
@@ -12,14 +13,30 @@ router.get('/pending', authRequired, (req, res) => {
   
   const tenants = db.prepare(`
     SELECT u.id, u.username, u.name, u.phone, u.status, u.createdAt,
-           t.id as tenantId, t.hoTen, t.soDienThoai, t.cccd
+           t.id as tenantId, t.hoTen, t.soDienThoai, t.cccd, t.email, t.diaChi, t.ngaySinh
     FROM User u
     LEFT JOIN Tenant t ON u.id = t.userId
     WHERE u.role = 'TENANT' AND u.status = 'PENDING'
     ORDER BY u.createdAt ASC
   `).all();
   
-  res.json(tenants);
+  // Giải mã User name, phone và Tenant sốDiệnThoại, cccd
+  const decryptedTenants = tenants.map(t => {
+    const decryptedUser = decryptUser(t);
+    const decryptedTenant = decryptTenant(t);
+    return {
+      ...t,
+      name: decryptedUser.name,
+      phone: decryptedUser.phone,
+      soDienThoai: decryptedTenant.soDienThoai,
+      cccd: decryptedTenant.cccd,
+      email: decryptedTenant.email,
+      diaChi: decryptedTenant.diaChi,
+      ngaySinh: decryptedTenant.ngaySinh
+    };
+  });
+  
+  res.json(decryptedTenants);
 });
 
 // Duyệt tenant
@@ -58,8 +75,10 @@ router.post('/:userId/approve', authRequired, (req, res) => {
     // Tìm hoặc tạo Tenant record cho user này
     let tenant = db.prepare('SELECT * FROM Tenant WHERE userId = ?').get(userId);
     if (!tenant) {
-      const info = db.prepare('INSERT INTO Tenant (userId, hoTen, soDienThoai, cccd) VALUES (?,?,?,?)')
-        .run(user.id, user.name || user.username, user.phone || null, null);
+      const { encryptUser } = require('../utils/encryption');
+      const encrypted = encryptUser({ name: user.name, phone: user.phone });
+      const info = db.prepare('INSERT INTO Tenant (userId, hoTen, soDienThoai, cccd, email, diaChi, ngaySinh, gioiTinh) VALUES (?,?,?,?,?,?,?,?)')
+        .run(user.id, encrypted.name, encrypted.phone, null, null, null, null, null);
       tenant = db.prepare('SELECT * FROM Tenant WHERE id = ?').get(info.lastInsertRowid);
     }
 

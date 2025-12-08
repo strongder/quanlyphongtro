@@ -19,7 +19,14 @@ interface AuthContextType {
     username: string,
     name: string,
     phone: string,
-    password: string
+    password: string,
+    additionalInfo?: {
+      email?: string;
+      diaChi?: string;
+      ngaySinh?: string;
+      gioiTinh?: "NAM" | "NU" | "KHAC";
+      cccd?: string;
+    }
   ) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<void>;
@@ -63,6 +70,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const login = async (username: string, password: string) => {
     try {
       const response = await authService.login({ username, password });
+      if (response?.status === 429) {
+        Alert.alert("Lỗi", "Bạn đăng nhập quá nhiều lần, vui lòng thử lại sau");
+        return;
+      }
       await SecureStore.setItemAsync("authToken", response.token);
       await SecureStore.setItemAsync("userRole", response.user.role);
       const biometricSuccess = await authenticateWithBiometrics();
@@ -98,10 +109,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     username: string,
     name: string,
     phone: string,
-    password: string
+    password: string,
+    additionalInfo?: {
+      email?: string;
+      diaChi?: string;
+      ngaySinh?: string;
+      gioiTinh?: "NAM" | "NU" | "KHAC";
+      cccd?: string;
+    }
   ) => {
     try {
-      await authService.registerTenant({ username, name, phone, password });
+      await authService.registerTenant({
+        username,
+        name,
+        phone,
+        password,
+        ...additionalInfo,
+      });
       // Không tự động đăng nhập vì cần chờ duyệt
     } catch (error) {
       throw error;

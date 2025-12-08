@@ -25,11 +25,11 @@ router.get('/me', authRequired, (req, res) => {
 router.patch('/me', authRequired, (req, res) => {
   const { name, phone, expoPushToken } = req.body || {};
   
-  // Mã hóa phone nếu có
-  const encryptedData = encryptUser({ phone });
+  // Mã hóa phone và name nếu có
+  const encryptedData = encryptUser({ phone, name });
   
   db.prepare('UPDATE User SET name = COALESCE(?, name), phone = COALESCE(?, phone), expoPushToken = COALESCE(?, expoPushToken) WHERE id = ?')
-    .run(name ?? null, encryptedData.phone ?? null, expoPushToken ?? null, req.user.userId);
+    .run(encryptedData.name ?? null, encryptedData.phone ?? null, expoPushToken ?? null, req.user.userId);
   
   const user = db.prepare('SELECT id, role, name, phone, expoPushToken, createdAt FROM User WHERE id = ?').get(req.user.userId);
   const decryptedUser = decryptUser(user);

@@ -18,12 +18,30 @@ const RoomDetailScreen = ({ navigation, route }: any) => {
   const { room } = route.params;
   const isEdit = room !== null;
   
+  // Parse taiSan nếu là string JSON
+  const parseTaiSan = (taiSanData: any): Record<string, number> => {
+    if (!taiSanData) return {};
+    if (typeof taiSanData === 'string') {
+      try {
+        return JSON.parse(taiSanData);
+      } catch (e) {
+        console.log('Error parsing taiSan:', e);
+        return {};
+      }
+    }
+    return taiSanData;
+  };
+  
   const [formData, setFormData] = useState({
     maPhong: room?.maPhong || '',
     giaThue: room?.giaThue?.toString() || '',
+    dienTich: room?.dienTich?.toString() || '',
     trangThai: room?.trangThai || 'TRONG',
     note: room?.note || '',
   });
+  const [taiSan, setTaiSan] = useState<Record<string, number>>(parseTaiSan(room?.taiSan));
+  const [newAssetName, setNewAssetName] = useState('');
+  const [newAssetQuantity, setNewAssetQuantity] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSave = async () => {
@@ -38,11 +56,19 @@ const RoomDetailScreen = ({ navigation, route }: any) => {
       return;
     }
 
+    const dienTich = formData.dienTich ? parseFloat(formData.dienTich) : undefined;
+    if (dienTich !== undefined && (isNaN(dienTich) || dienTich <= 0)) {
+      Alert.alert('Lỗi', 'Diện tích phải là số dương');
+      return;
+    }
+
     setIsLoading(true);
     try {
       const roomData = {
         maPhong: formData.maPhong.trim(),
         giaThue,
+        dienTich,
+        taiSan: Object.keys(taiSan).length > 0 ? taiSan : undefined,
         trangThai: formData.trangThai,
         note: formData.note.trim() || undefined,
       };
@@ -93,6 +119,70 @@ const RoomDetailScreen = ({ navigation, route }: any) => {
           </View>
 
           <View style={styles.inputContainer}>
+            <Text style={styles.label}>Diện tích (m²)</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.dienTich}
+              onChangeText={(text) => setFormData({ ...formData, dienTich: text })}
+              placeholder="Nhập diện tích (tùy chọn)"
+              keyboardType="decimal-pad"
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Tài sản</Text>
+            <View style={styles.assetContainer}>
+              {Object.entries(taiSan).map(([name, quantity]) => (
+                <View key={name} style={styles.assetItem}>
+                  <View style={styles.assetInfo}>
+                    <Text style={styles.assetName}>{name}</Text>
+                    <Text style={styles.assetQuantity}>x{quantity}</Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => {
+                      const newAssets = { ...taiSan };
+                      delete newAssets[name];
+                      setTaiSan(newAssets);
+                    }}
+                  >
+                    <Ionicons name="close-circle" size={20} color="#FF3B30" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+            <View style={styles.addAssetRow}>
+              <TextInput
+                style={[styles.input, styles.assetNameInput]}
+                value={newAssetName}
+                onChangeText={setNewAssetName}
+                placeholder="Tên tài sản"
+              />
+              <TextInput
+                style={[styles.input, styles.assetQuantityInput]}
+                value={newAssetQuantity}
+                onChangeText={setNewAssetQuantity}
+                placeholder="SL"
+                keyboardType="numeric"
+              />
+              <TouchableOpacity
+                style={styles.addAssetButton}
+                onPress={() => {
+                  if (newAssetName.trim() && newAssetQuantity) {
+                    const qty = parseInt(newAssetQuantity);
+                    if (!isNaN(qty) && qty > 0) {
+                      setTaiSan({ ...taiSan, [newAssetName.trim()]: qty });
+                      setNewAssetName('');
+                      setNewAssetQuantity('');
+                    }
+                  }
+                }}
+              >
+                <Ionicons name="add-circle" size={32} color="#007AFF" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.inputContainer}>
             <Text style={styles.label}>Trạng thái</Text>
             <View style={styles.statusContainer}>
               <TouchableOpacity
@@ -139,24 +229,26 @@ const RoomDetailScreen = ({ navigation, route }: any) => {
             />
           </View>
 
-          <TouchableOpacity
-            style={[styles.saveButton, isLoading && styles.saveButtonDisabled]}
-            onPress={handleSave}
-            disabled={isLoading}
-          >
-            <Text style={styles.saveButtonText}>
-              {isLoading ? 'Đang lưu...' : (isEdit ? 'Cập nhật' : 'Tạo mới')}
-            </Text>
-          </TouchableOpacity>
-
-          {isEdit && (
+          <View style={styles.buttonRow}>
             <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => navigation.goBack()}
+              style={[styles.saveButton, isLoading && styles.saveButtonDisabled]}
+              onPress={handleSave}
+              disabled={isLoading}
             >
-              <Text style={styles.cancelButtonText}>Hủy</Text>
+              <Text style={styles.saveButtonText}>
+                {isLoading ? 'Đang lưu...' : (isEdit ? 'Cập nhật' : 'Tạo mới')}
+              </Text>
             </TouchableOpacity>
-          )}
+
+            {isEdit && (
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => navigation.goBack()}
+              >
+                <Text style={styles.cancelButtonText}>Hủy</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -220,12 +312,17 @@ const styles = StyleSheet.create({
   statusButtonTextActive: {
     color: 'white',
   },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 20,
+  },
   saveButton: {
+    flex: 1,
     backgroundColor: '#007AFF',
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
-    marginTop: 20,
   },
   saveButtonDisabled: {
     backgroundColor: '#ccc',
@@ -236,17 +333,58 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   cancelButton: {
+    flex: 1,
     backgroundColor: 'white',
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
-    marginTop: 12,
     borderWidth: 1,
     borderColor: '#ddd',
   },
   cancelButtonText: {
     color: '#666',
     fontSize: 16,
+  },
+  assetContainer: {
+    marginBottom: 12,
+  },
+  assetItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#f8f8f8',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  assetInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginRight: 12,
+  },
+  assetName: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '500',
+  },
+  assetQuantity: {
+    fontSize: 16,
+    color: '#666',
+  },
+  addAssetRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  assetNameInput: {
+    flex: 2,
+  },
+  assetQuantityInput: {
+    flex: 1,
+  },
+  addAssetButton: {
+    padding: 4,
   },
 });
 

@@ -56,7 +56,21 @@ const RoomsScreen = ({ navigation }: any) => {
     );
   };
 
-  const renderRoomItem = ({ item }: { item: Room }) => (
+  const renderRoomItem = ({ item }: { item: Room }) => {
+    // Parse taiSan nếu là string JSON
+    const parsedTaiSan = (() => {
+      if (!item.taiSan) return null;
+      if (typeof item.taiSan === 'string') {
+        try {
+          return JSON.parse(item.taiSan);
+        } catch (e) {
+          return null;
+        }
+      }
+      return item.taiSan;
+    })();
+
+    return (
     <TouchableOpacity
       style={styles.roomCard}
       onPress={() => navigation.navigate('RoomDetail', { room: item })}
@@ -79,19 +93,28 @@ const RoomsScreen = ({ navigation }: any) => {
           <Text style={styles.infoText}>{item.giaThue.toLocaleString()}đ/tháng</Text>
         </View>
         
+        {item.dienTich && (
+          <View style={styles.infoRow}>
+            <Ionicons name="resize-outline" size={16} color="#666" />
+            <Text style={styles.infoText}>{item.dienTich}m²</Text>
+          </View>
+        )}
+        
+        {parsedTaiSan && Object.keys(parsedTaiSan).length > 0 && (
+          <View style={styles.infoRow}>
+            <Ionicons name="cube-outline" size={16} color="#666" />
+            <Text style={styles.infoText} numberOfLines={2}>
+              {Object.entries(parsedTaiSan).map(([name, qty]) => `${name} (${qty})`).join(', ')}
+            </Text>
+          </View>
+        )}
+        
         {item.note && (
           <View style={styles.infoRow}>
             <Ionicons name="document-text-outline" size={16} color="#666" />
             <Text style={styles.infoText}>{item.note}</Text>
           </View>
         )}
-        
-        <View style={styles.infoRow}>
-          <Ionicons name="calendar-outline" size={16} color="#666" />
-          <Text style={styles.infoText}>
-            Tạo: {new Date(item.createdAt).toLocaleDateString('vi-VN')}
-          </Text>
-        </View>
 
         {item.currentTenants && item.currentTenants.length > 0 && (
           <View style={styles.tenantsBlock}>
@@ -131,7 +154,8 @@ const RoomsScreen = ({ navigation }: any) => {
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
-  );
+    );
+  };
 
   const filterButtons = [
     { key: 'all', label: 'Tất cả' },

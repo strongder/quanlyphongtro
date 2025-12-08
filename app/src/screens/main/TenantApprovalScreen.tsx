@@ -541,6 +541,35 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  roomItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 15,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  roomItemSelected: {
+    borderWidth: 2,
+    borderColor: '#34C759',
+  },
+  roomInfo: {
+    flexDirection: 'column',  
+  },
+  roomCode: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  roomPrice: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
+  confirmApproveButton: {
+    backgroundColor: '#34C759',
+  },
 });
 
 export default TenantApprovalScreen;

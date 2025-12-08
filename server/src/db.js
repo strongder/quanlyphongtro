@@ -29,6 +29,8 @@ function runMigrations() {
       maPhong TEXT NOT NULL UNIQUE,
       giaThue REAL NOT NULL,
       trangThai TEXT NOT NULL CHECK(trangThai IN ('TRONG','CO_KHACH')) DEFAULT 'TRONG',
+      dienTich REAL,
+      taiSan TEXT,
       note TEXT,
       createdAt TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -39,6 +41,10 @@ function runMigrations() {
       hoTen TEXT NOT NULL,
       soDienThoai TEXT,
       cccd TEXT,
+      email TEXT,
+      diaChi TEXT,
+      ngaySinh TEXT,
+      gioiTinh TEXT CHECK(gioiTinh IN ('NAM','NU','KHAC')),
       createdAt TEXT NOT NULL DEFAULT (datetime('now'))
     );
 

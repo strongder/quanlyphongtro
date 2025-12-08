@@ -8,7 +8,7 @@ import * as WebBrowser from 'expo-web-browser';
 //  192.130.38.115
 //192.168.5.41
 // https://calls-comply-projects-dealtime.trycloudflare.com
-const API_BASE_URL = 'https://calls-comply-projects-dealtime.trycloudflare.com/api';
+const API_BASE_URL = 'http://192.168.5.41:3000/api';
 
 
 const api = axios.create({
@@ -71,6 +71,7 @@ export const roomService = {
   async getRooms(status?: string): Promise<Room[]> {
     const params = status ? { status } : {};
     const response = await api.get('/rooms', { params });
+    console.log('Fetched rooms:', response.data);
     return response.data;
   },
 
@@ -87,6 +88,7 @@ export const roomService = {
 
   async getRoom(id: number): Promise<Room> {
     const response = await api.get(`/rooms/${id}`);
+    console.log('Fetched room:', response.data);
     return response.data;
   },
 

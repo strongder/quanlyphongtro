@@ -17,7 +17,7 @@ router.get('/', (req, res) => {
 });
 
 router.post('/', (req, res) => {
-  const { userId, hoTen, soDienThoai, cccd } = req.body;
+  const { userId, hoTen, soDienThoai, cccd, email, diaChi, ngaySinh, gioiTinh } = req.body;
   if (!hoTen) return res.status(400).json({ error: 'hoTen required' });
   if (!userId) return res.status(400).json({ error: 'userId required' });
   
@@ -28,13 +28,19 @@ router.post('/', (req, res) => {
   }
   
   // Mã hóa dữ liệu nhạy cảm
-  const encryptedData = encryptTenant({ soDienThoai, cccd });
+  const encryptedData = encryptTenant({ soDienThoai, cccd, email, diaChi, ngaySinh });
   
-  const info = db.prepare('INSERT INTO Tenant (userId, hoTen, soDienThoai, cccd) VALUES (?,?,?,?)').run(
+  const info = db.prepare(
+    'INSERT INTO Tenant (userId, hoTen, soDienThoai, cccd, email, diaChi, ngaySinh, gioiTinh) VALUES (?,?,?,?,?,?,?,?)'
+  ).run(
     userId, 
     hoTen, 
     encryptedData.soDienThoai || null, 
-    encryptedData.cccd || null
+    encryptedData.cccd || null,
+    encryptedData.email || null,
+    encryptedData.diaChi || null,
+    encryptedData.ngaySinh || null,
+    gioiTinh || null
   );
   
   const tenant = db.prepare('SELECT * FROM Tenant WHERE id = ?').get(info.lastInsertRowid);
@@ -50,20 +56,25 @@ router.get('/:id', (req, res) => {
 });
 
 router.patch('/:id', (req, res) => {
-  const { hoTen, soDienThoai, cccd } = req.body;
+  const { hoTen, soDienThoai, cccd, email, diaChi, ngaySinh, gioiTinh } = req.body;
   const existing = db.prepare('SELECT * FROM Tenant WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Not found' });
   
   // Mã hóa dữ liệu nhạy cảm nếu có
-  const encryptedData = encryptTenant({ soDienThoai, cccd });
+  const encryptedData = encryptTenant({ soDienThoai, cccd, email, diaChi, ngaySinh });
   
-  db.prepare('UPDATE Tenant SET hoTen = COALESCE(?, hoTen), soDienThoai = COALESCE(?, soDienThoai), cccd = COALESCE(?, cccd) WHERE id = ?')
-    .run(
-      hoTen ?? null, 
-      encryptedData.soDienThoai ?? null, 
-      encryptedData.cccd ?? null, 
-      req.params.id
-    );
+  db.prepare(
+    'UPDATE Tenant SET hoTen = COALESCE(?, hoTen), soDienThoai = COALESCE(?, soDienThoai), cccd = COALESCE(?, cccd), email = COALESCE(?, email), diaChi = COALESCE(?, diaChi), ngaySinh = COALESCE(?, ngaySinh), gioiTinh = COALESCE(?, gioiTinh) WHERE id = ?'
+  ).run(
+    hoTen ?? null, 
+    encryptedData.soDienThoai ?? null, 
+    encryptedData.cccd ?? null,
+    encryptedData.email ?? null,
+    encryptedData.diaChi ?? null,
+    encryptedData.ngaySinh ?? null,
+    gioiTinh ?? null,
+    req.params.id
+  );
   
   const tenant = db.prepare('SELECT * FROM Tenant WHERE id = ?').get(req.params.id);
   const decryptedTenant = decryptTenant(tenant);

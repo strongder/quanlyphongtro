@@ -32,7 +32,7 @@ const TenantsScreen = ({ navigation }: any) => {
 
   useEffect(() => {
     loadTenants();
-  }, [searchQuery]);
+  }, [searchQuery, navigation]);
 
   const handleDeleteTenant = (tenant: Tenant) => {
     Alert.alert(
@@ -84,12 +84,35 @@ const TenantsScreen = ({ navigation }: any) => {
           </View>
         )}
         
-        <View style={styles.detailRow}>
-          <Ionicons name="calendar-outline" size={16} color="#666" />
-          <Text style={styles.detailText}>
-            Tạo: {new Date(item.createdAt).toLocaleDateString('vi-VN')}
-          </Text>
-        </View>
+        {item.email && (
+          <View style={styles.detailRow}>
+            <Ionicons name="mail-outline" size={16} color="#666" />
+            <Text style={styles.detailText}>{item.email}</Text>
+          </View>
+        )}
+        
+        {item.diaChi && (
+          <View style={styles.detailRow}>
+            <Ionicons name="location-outline" size={16} color="#666" />
+            <Text style={styles.detailText}>{item.diaChi}</Text>
+          </View>
+        )}
+        
+        {item.ngaySinh && (
+          <View style={styles.detailRow}>
+            <Ionicons name="calendar-outline" size={16} color="#666" />
+            <Text style={styles.detailText}>SN: {item.ngaySinh}</Text>
+          </View>
+        )}
+        
+        {item.gioiTinh && (
+          <View style={styles.detailRow}>
+            <Ionicons name="person-outline" size={16} color="#666" />
+            <Text style={styles.detailText}>
+              {item.gioiTinh === 'NAM' ? 'Nam' : item.gioiTinh === 'NU' ? 'Nữ' : 'Khác'}
+            </Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.tenantActions}>

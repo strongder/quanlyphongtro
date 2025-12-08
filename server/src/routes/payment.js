@@ -45,7 +45,9 @@ router.post("/vnpay/create", authRequired, (req, res) => {
   }
 
   // Lấy thông tin hóa đơn
-  const invoice = db.prepare("SELECT * FROM Invoice WHERE id = ?").get(invoiceId);
+  const invoice = db
+    .prepare("SELECT * FROM Invoice WHERE id = ?")
+    .get(invoiceId);
   if (!invoice) {
     return res.status(404).json({ error: "Invoice not found" });
   }
@@ -58,10 +60,12 @@ router.post("/vnpay/create", authRequired, (req, res) => {
     req.headers["x-forwarded-for"] ||
     req.connection?.remoteAddress ||
     req.socket?.remoteAddress ||
-    req.connection?.socket?.remoteAddress
+    req.connection?.socket?.remoteAddress;
 
   // Tạo transactionId (8 số ngẫu nhiên như Java)
-  const transactionId = Math.floor(10000000 + Math.random() * 90000000).toString();
+  const transactionId = Math.floor(
+    10000000 + Math.random() * 90000000
+  ).toString();
 
   const createDate = moment().format("YYYYMMDDHHmmss");
   const expireDate = moment().add(15, "minutes").format("YYYYMMDDHHmmss");
@@ -96,7 +100,7 @@ router.post("/vnpay/create", authRequired, (req, res) => {
     code: "00",
     message: "Payment URL created successfully",
     transactionId,
-    paymentUrl
+    paymentUrl,
   });
 });
 
@@ -153,7 +157,9 @@ router.get("/vnpay/callback", (req, res) => {
       `);
     }
 
-    const invoice = db.prepare("SELECT * FROM Invoice WHERE id = ?").get(invoiceId);
+    const invoice = db
+      .prepare("SELECT * FROM Invoice WHERE id = ?")
+      .get(invoiceId);
     if (!invoice) {
       return res.send(`
         <html>
@@ -180,33 +186,54 @@ router.get("/vnpay/callback", (req, res) => {
     }
 
     // Lưu giao dịch
-    const existingPayment = db.prepare("SELECT * FROM Payment WHERE transactionId = ?").get(transactionId);
+    const existingPayment = db
+      .prepare("SELECT * FROM Payment WHERE transactionId = ?")
+      .get(transactionId);
     if (existingPayment) {
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE Payment SET status = ?, responseCode = ?, paidAt = datetime('now')
         WHERE transactionId = ?
-      `).run(paymentStatus, responseCode, transactionId);
+      `
+      ).run(paymentStatus, responseCode, transactionId);
     } else {
-      db.prepare(`
+      db.prepare(
+        `
         INSERT INTO Payment (invoiceId, transactionId, amount, status, responseCode, paidAt)
         VALUES (?, ?, ?, ?, ?, datetime('now'))
-      `).run(invoiceId, transactionId, vnp_Params.vnp_Amount / 100, paymentStatus, responseCode);
+      `
+      ).run(
+        invoiceId,
+        transactionId,
+        vnp_Params.vnp_Amount / 100,
+        paymentStatus,
+        responseCode
+      );
     }
 
     if (paymentStatus === "SUCCESS") {
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE Invoice SET status = 'PAID', paidAt = datetime('now')
         WHERE id = ?
-      `).run(invoiceId);
-
+      `
+      ).run(invoiceId);
+      const deepLink = `quanlyphongtro://payment-callback?invoiceId=${invoiceId}&responseCode=${responseCode}`;
       return res.send(`
         <html>
           <head><title>Thanh toán thành công</title></head>
           <body style="font-family: Arial; text-align:center; padding:40px;">
             <h1>✅ Thanh toán thành công</h1>
             <p>Mã hóa đơn: ${invoiceId}</p>
-            <p>Số tiền: ${(vnp_Params.vnp_Amount / 100).toLocaleString('vi-VN')} VND</p>
-            <a href="quanlyphongtro://payment-success?invoiceId=${invoiceId}">← Quay lại ứng dụng</a>
+            <p>Số tiền: ${(vnp_Params.vnp_Amount / 100).toLocaleString(
+              "vi-VN"
+            )} VND</p>
+            <script>
+        setTimeout(() => {
+          window.location.href = '${deepLink}';
+        }, 2000);
+      </script>
+      <p><a href="${deepLink}">Nhấn vào đây nếu không tự động chuyển</a></p>
           </body>
         </html>
       `);
@@ -237,30 +264,37 @@ router.get("/vnpay/callback", (req, res) => {
   }
 });
 
-
 // Kiểm tra trạng thái thanh toán
 router.get("/vnpay/status/:invoiceId", authRequired, (req, res) => {
   const { invoiceId } = req.params;
 
-  const invoice = db.prepare("SELECT * FROM Invoice WHERE id = ?").get(invoiceId);
+  const invoice = db
+    .prepare("SELECT * FROM Invoice WHERE id = ?")
+    .get(invoiceId);
   if (!invoice) {
     return res.status(404).json({ error: "Invoice not found" });
   }
 
-  const payment = db.prepare("SELECT * FROM Payment WHERE invoiceId = ? ORDER BY createdAt DESC LIMIT 1").get(invoiceId);
+  const payment = db
+    .prepare(
+      "SELECT * FROM Payment WHERE invoiceId = ? ORDER BY createdAt DESC LIMIT 1"
+    )
+    .get(invoiceId);
 
   return res.json({
     invoiceId,
     invoiceStatus: invoice.status,
-    payment: payment ? {
-      id: payment.id,
-      transactionId: payment.transactionId,
-      amount: payment.amount,
-      status: payment.status,
-      responseCode: payment.responseCode,
-      paidAt: payment.paidAt,
-      createdAt: payment.createdAt
-    } : null
+    payment: payment
+      ? {
+          id: payment.id,
+          transactionId: payment.transactionId,
+          amount: payment.amount,
+          status: payment.status,
+          responseCode: payment.responseCode,
+          paidAt: payment.paidAt,
+          createdAt: payment.createdAt,
+        }
+      : null,
   });
 });
 

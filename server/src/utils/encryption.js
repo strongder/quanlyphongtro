@@ -52,89 +52,95 @@ function decrypt(encryptedText) {
 }
 
 /**
- * Mã hóa thông tin User (phone)
+ * Mã hóa thông tin User (phone, name - không mã hóa username)
  * @param {Object} userData - Dữ liệu User
- * @returns {Object} - Object với phone đã mã hóa
+ * @returns {Object} - Object với phone, name đã mã hóa
  */
 function encryptUser(userData) {
   if (!userData) return userData;
   
   const encrypted = { ...userData };
   
-  if (encrypted.phone) {
-    encrypted.phone = encrypt(encrypted.phone);
-  }
+  const fieldsToEncrypt = ['phone', 'name'];
+  
+  fieldsToEncrypt.forEach(field => {
+    if (encrypted[field]) {
+      encrypted[field] = encrypt(encrypted[field]);
+    }
+  });
   
   return encrypted;
 }
 
 /**
- * Giải mã thông tin User (phone)
+ * Giải mã thông tin User (phone, name - username giữ nguyên)
  * @param {Object} userData - Dữ liệu User đã mã hóa
- * @returns {Object} - Object với phone đã giải mã
+ * @returns {Object} - Object với phone, name đã giải mã
  */
 function decryptUser(userData) {
   if (!userData) return userData;
   
   const decrypted = { ...userData };
   
-  if (decrypted.phone) {
-    try {
-      decrypted.phone = decrypt(decrypted.phone);
-    } catch (err) {
-      console.error(`Error decrypting phone:`, err.message);
+  const fieldsToDecrypt = ['phone', 'name'];
+  
+  fieldsToDecrypt.forEach(field => {
+    if (decrypted[field]) {
+      try {
+        decrypted[field] = decrypt(decrypted[field]);
+      } catch (err) {
+        console.error(`Error decrypting ${field}:`, err.message);
+      }
     }
-  }
+  });
   
   return decrypted;
 }
 
 /**
- * Mã hóa thông tin Tenant (soDienThoai, cccd)
+ * Mã hóa thông tin Tenant (tất cả các trường nhạy cảm)
  * @param {Object} tenantData - Dữ liệu Tenant
- * @returns {Object} - Object với soDienThoai và cccd đã mã hóa
+ * @returns {Object} - Object với các trường đã mã hóa
  */
 function encryptTenant(tenantData) {
   if (!tenantData) return tenantData;
   
   const encrypted = { ...tenantData };
   
-  if (encrypted.soDienThoai) {
-    encrypted.soDienThoai = encrypt(encrypted.soDienThoai);
-  }
+  // Mã hóa tất cả các trường nhạy cảm
+  const fieldsToEncrypt = ['soDienThoai', 'cccd', 'email', 'diaChi', 'ngaySinh'];
   
-  if (encrypted.cccd) {
-    encrypted.cccd = encrypt(encrypted.cccd);
-  }
+  fieldsToEncrypt.forEach(field => {
+    if (encrypted[field]) {
+      encrypted[field] = encrypt(encrypted[field]);
+    }
+  });
   
   return encrypted;
 }
 
 /**
- * Giải mã thông tin Tenant (soDienThoai, cccd)
+ * Giải mã thông tin Tenant (tất cả các trường nhạy cảm)
  * @param {Object} tenantData - Dữ liệu Tenant đã mã hóa
- * @returns {Object} - Object với soDienThoai và cccd đã giải mã
+ * @returns {Object} - Object với các trường đã giải mã
  */
 function decryptTenant(tenantData) {
   if (!tenantData) return tenantData;
   
   const decrypted = { ...tenantData };
   
-  if (decrypted.soDienThoai) {
-    try {
-      decrypted.soDienThoai = decrypt(decrypted.soDienThoai);
-    } catch (err) {
-      console.error(`Error decrypting soDienThoai:`, err.message);
-    }
-  }
+  // Giải mã tất cả các trường nhạy cảm
+  const fieldsToDecrypt = ['soDienThoai', 'cccd', 'email', 'diaChi', 'ngaySinh'];
   
-  if (decrypted.cccd) {
-    try {
-      decrypted.cccd = decrypt(decrypted.cccd);
-    } catch (err) {
-      console.error(`Error decrypting cccd:`, err.message);
+  fieldsToDecrypt.forEach(field => {
+    if (decrypted[field]) {
+      try {
+        decrypted[field] = decrypt(decrypted[field]);
+      } catch (err) {
+        console.error(`Error decrypting ${field}:`, err.message);
+      }
     }
-  }
+  });
   
   return decrypted;
 }

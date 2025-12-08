@@ -18,6 +18,8 @@ export interface Room {
   id: number;
   maPhong: string;
   giaThue: number;
+  dienTich?: number;
+  taiSan?: Record<string, number>;
   trangThai: 'TRONG' | 'CO_KHACH';
   note?: string;
   createdAt: string;
@@ -36,6 +38,10 @@ export interface Tenant {
   hoTen: string;
   soDienThoai?: string;
   cccd?: string;
+  email?: string;
+  diaChi?: string;
+  ngaySinh?: string;
+  gioiTinh?: 'NAM' | 'NU' | 'KHAC';
   createdAt: string;
 }
 
@@ -90,6 +96,8 @@ export interface PaymentStatusResponse {
 export interface AuthResponse {
   token: string;
   user: User;
+  error: string;
+  status: number;
 }
 
 export interface ApiResponse<T> {

@@ -17,6 +17,11 @@ const TenantRegisterScreen = ({ navigation }: any) => {
   const [username, setUsername] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [diaChi, setDiaChi] = useState('');
+  const [ngaySinh, setNgaySinh] = useState('');
+  const [gioiTinh, setGioiTinh] = useState<'NAM' | 'NU' | 'KHAC'>('KHAC');
+  const [cccd, setCccd] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -40,7 +45,19 @@ const TenantRegisterScreen = ({ navigation }: any) => {
 
     setIsLoading(true);
     try {
-      const response = await registerTenant(username.trim(), name.trim(), phone.trim(), password);
+      const response = await registerTenant(
+        username.trim(), 
+        name.trim(), 
+        phone.trim(), 
+        password,
+        {
+          email: email.trim() || undefined,
+          diaChi: diaChi.trim() || undefined,
+          ngaySinh: ngaySinh.trim() || undefined,
+          gioiTinh,
+          cccd: cccd.trim() || undefined,
+        }
+      );
       Alert.alert(
         'Đăng ký thành công', 
         'Tài khoản của bạn đã được tạo và đang chờ duyệt từ quản lý. Bạn sẽ nhận được thông báo khi được duyệt.',
@@ -107,6 +124,104 @@ const TenantRegisterScreen = ({ navigation }: any) => {
               placeholder="Nhập số điện thoại (tùy chọn)"
               keyboardType="phone-pad"
             />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="Nhập email (tùy chọn)"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>CCCD/CMND</Text>
+            <TextInput
+              style={styles.input}
+              value={cccd}
+              onChangeText={setCccd}
+              placeholder="Nhập số CCCD/CMND (tùy chọn)"
+              keyboardType="numeric"
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Địa chỉ</Text>
+            <TextInput
+              style={styles.input}
+              value={diaChi}
+              onChangeText={setDiaChi}
+              placeholder="Nhập địa chỉ (tùy chọn)"
+              multiline
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Ngày sinh</Text>
+            <TextInput
+              style={styles.input}
+              value={ngaySinh}
+              onChangeText={setNgaySinh}
+              placeholder="DD/MM/YYYY (tùy chọn)"
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Giới tính</Text>
+            <View style={styles.genderContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.genderButton,
+                  gioiTinh === 'NAM' && styles.genderButtonActive,
+                ]}
+                onPress={() => setGioiTinh('NAM')}
+              >
+                <Text
+                  style={[
+                    styles.genderButtonText,
+                    gioiTinh === 'NAM' && styles.genderButtonTextActive,
+                  ]}
+                >
+                  Nam
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.genderButton,
+                  gioiTinh === 'NU' && styles.genderButtonActive,
+                ]}
+                onPress={() => setGioiTinh('NU')}
+              >
+                <Text
+                  style={[
+                    styles.genderButtonText,
+                    gioiTinh === 'NU' && styles.genderButtonTextActive,
+                  ]}
+                >
+                  Nữ
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.genderButton,
+                  gioiTinh === 'KHAC' && styles.genderButtonActive,
+                ]}
+                onPress={() => setGioiTinh('KHAC')}
+              >
+                <Text
+                  style={[
+                    styles.genderButtonText,
+                    gioiTinh === 'KHAC' && styles.genderButtonTextActive,
+                  ]}
+                >
+                  Khác
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           <View style={styles.inputContainer}>
@@ -273,6 +388,32 @@ const styles = StyleSheet.create({
     color: '#007AFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  genderContainer: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  genderButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    backgroundColor: 'white',
+    alignItems: 'center',
+  },
+  genderButtonActive: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  genderButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+  },
+  genderButtonTextActive: {
+    color: 'white',
   },
 });
 

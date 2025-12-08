@@ -24,7 +24,19 @@ const TenantDashboardScreen = ({ navigation }: any) => {
     try {
       const rooms = await roomService.getMyRooms();
       console.log('Loaded rooms for tenant:', rooms);
-      setRoom((rooms as any)[0] || null); // Khách thuê chỉ có 1 phòng
+      const loadedRoom = (rooms as any)[0] || null;
+      
+      // Parse taiSan nếu là string JSON
+      if (loadedRoom?.taiSan && typeof loadedRoom.taiSan === 'string') {
+        try {
+          loadedRoom.taiSan = JSON.parse(loadedRoom.taiSan);
+        } catch (e) {
+          console.log('Error parsing taiSan:', e);
+          loadedRoom.taiSan = {};
+        }
+      }
+      
+      setRoom(loadedRoom); // Khách thuê chỉ có 1 phòng
     }
     catch (error) {
       console.log('Error loading room:', error);
@@ -102,10 +114,27 @@ const TenantDashboardScreen = ({ navigation }: any) => {
             <Text style={styles.label}>Giá thuê:</Text>
             <Text style={styles.value}>{room?.giaThue?.toLocaleString()}đ/tháng</Text>
           </View>
+          {room.dienTich && (
+            <View style={styles.infoRow}>
+              <Text style={styles.label}>Diện tích:</Text>
+              <Text style={styles.value}>{room.dienTich}m²</Text>
+            </View>
+          )}
           <View style={styles.infoRow}>
             <Text style={styles.label}>Trạng thái:</Text>
             <Text style={[styles.value, styles.occupiedText]}>Có khách</Text>
           </View>
+          {room.taiSan && Object.keys(room.taiSan).length > 0 && (
+            <View style={styles.assetSection}>
+              <Text style={styles.label}>Tài sản trong phòng:</Text>
+              {Object.entries(room.taiSan).map(([name, quantity]) => (
+                <View key={name} style={styles.assetRow}>
+                  <Text style={styles.assetText}>• {name}</Text>
+                  <Text style={styles.assetText}>x{quantity}</Text>
+                </View>
+              ))}
+            </View>
+          )}
           {room.note && (
             <View style={styles.infoRow}>
               <Text style={styles.label}>Ghi chú:</Text>
@@ -293,7 +322,7 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: '#f8f8f8',
     borderRadius: 12,
-    minWidth: 120,
+    minWidth: 100,
   },
   actionText: {
     fontSize: 14,
@@ -303,6 +332,22 @@ const styles = StyleSheet.create({
   },
   pendingText: {
     color: '#FF9500',
+  },
+  assetSection: {
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  assetRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+    paddingLeft: 8,
+  },
+  assetText: {
+    fontSize: 15,
+    color: '#666',
   },
 });
 

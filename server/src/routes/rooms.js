@@ -51,11 +51,24 @@ router.get('/', (req, res) => {
 });
 
 router.post('/', (req, res) => {
-  const { maPhong, giaThue, trangThai = 'TRONG', note } = req.body;
+  const { maPhong, giaThue, trangThai = 'TRONG', dienTich, taiSan, note } = req.body;
   try {
-    const stmt = db.prepare('INSERT INTO Room (maPhong, giaThue, trangThai, note) VALUES (?,?,?,?)');
-    const info = stmt.run(maPhong, giaThue, trangThai, note || null);
+    // Nếu taiSan là object, chuyển thành JSON string
+    const taiSanStr = taiSan ? (typeof taiSan === 'string' ? taiSan : JSON.stringify(taiSan)) : null;
+    
+    const stmt = db.prepare('INSERT INTO Room (maPhong, giaThue, trangThai, dienTich, taiSan, note) VALUES (?,?,?,?,?,?)');
+    const info = stmt.run(maPhong, giaThue, trangThai, dienTich || null, taiSanStr, note || null);
     const room = db.prepare('SELECT * FROM Room WHERE id = ?').get(info.lastInsertRowid);
+    
+    // Parse taiSan trước khi trả về
+    if (room.taiSan) {
+      try {
+        room.taiSan = JSON.parse(room.taiSan);
+      } catch (e) {
+        // Nếu không parse được, giữ nguyên string
+      }
+    }
+    
     res.status(201).json(room);
   } catch (e) {
     res.status(400).json({ error: e.message });
@@ -65,6 +78,16 @@ router.post('/', (req, res) => {
 router.get('/:id', (req, res) => {
   const room = db.prepare('SELECT * FROM Room WHERE id = ?').get(req.params.id);
   if (!room) return res.status(404).json({ error: 'Not found' });
+  
+  // Parse taiSan JSON
+  if (room.taiSan) {
+    try {
+      room.taiSan = JSON.parse(room.taiSan);
+    } catch (e) {
+      // Giữ nguyên nếu không parse được
+    }
+  }
+  
   const tenants = db.prepare(`
     SELECT t.id, t.hoTen, t.soDienThoai, u.username, rt.isPrimaryTenant, rt.ngayVao
     FROM RoomTenant rt
@@ -111,13 +134,27 @@ router.get('/me/tenant', authRequired, (req, res) => {
 });
 
 router.patch('/:id', (req, res) => {
-  const { maPhong, giaThue, trangThai, note } = req.body;
+  const { maPhong, giaThue, trangThai, dienTich, taiSan, note } = req.body;
   const existing = db.prepare('SELECT * FROM Room WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Not found' });
   try {
-    db.prepare('UPDATE Room SET maPhong = COALESCE(?, maPhong), giaThue = COALESCE(?, giaThue), trangThai = COALESCE(?, trangThai), note = COALESCE(?, note) WHERE id = ?')
-      .run(maPhong ?? null, giaThue ?? null, trangThai ?? null, note ?? null, req.params.id);
+    // Nếu taiSan là object, chuyển thành JSON string
+    const taiSanStr = taiSan ? (typeof taiSan === 'string' ? taiSan : JSON.stringify(taiSan)) : null;
+    
+    db.prepare('UPDATE Room SET maPhong = COALESCE(?, maPhong), giaThue = COALESCE(?, giaThue), trangThai = COALESCE(?, trangThai), dienTich = COALESCE(?, dienTich), taiSan = COALESCE(?, taiSan), note = COALESCE(?, note) WHERE id = ?')
+      .run(maPhong ?? null, giaThue ?? null, trangThai ?? null, dienTich ?? null, taiSanStr ?? null, note ?? null, req.params.id);
+    
     const room = db.prepare('SELECT * FROM Room WHERE id = ?').get(req.params.id);
+    
+    // Parse taiSan JSON
+    if (room.taiSan) {
+      try {
+        room.taiSan = JSON.parse(room.taiSan);
+      } catch (e) {
+        // Giữ nguyên nếu không parse được
+      }
+    }
+    
     res.json(room);
   } catch (e) {
     res.status(400).json({ error: e.message });

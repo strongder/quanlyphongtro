@@ -1,0 +1,12 @@
+prepare statement:v
+https:v
+aes:v
+jwt:v
+hashpas:v
+biologim:v
+thêm rate limit: v
+
+// api đăng ký đang lỗi
+// check lại có càn mã hoá username không 
+// sửa vnpay( file vnpaymodal, và app phía fe)
+                                                                                                                                                      

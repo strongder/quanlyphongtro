@@ -21,6 +21,10 @@ const TenantDetailScreen = ({ navigation, route }: any) => {
     hoTen: tenant?.hoTen || '',
     soDienThoai: tenant?.soDienThoai || '',
     cccd: tenant?.cccd || '',
+    email: tenant?.email || '',
+    diaChi: tenant?.diaChi || '',
+    ngaySinh: tenant?.ngaySinh || '',
+    gioiTinh: tenant?.gioiTinh || 'KHAC',
   });
   const [isLoading, setIsLoading] = useState(false);
 
@@ -36,6 +40,10 @@ const TenantDetailScreen = ({ navigation, route }: any) => {
         hoTen: formData.hoTen.trim(),
         soDienThoai: formData.soDienThoai.trim() || undefined,
         cccd: formData.cccd.trim() || undefined,
+        email: formData.email.trim() || undefined,
+        diaChi: formData.diaChi.trim() || undefined,
+        ngaySinh: formData.ngaySinh.trim() || undefined,
+        gioiTinh: formData.gioiTinh as 'NAM' | 'NU' | 'KHAC',
       };
 
       if (isEdit) {
@@ -94,24 +102,85 @@ const TenantDetailScreen = ({ navigation, route }: any) => {
             />
           </View>
 
-          <TouchableOpacity
-            style={[styles.saveButton, isLoading && styles.saveButtonDisabled]}
-            onPress={handleSave}
-            disabled={isLoading}
-          >
-            <Text style={styles.saveButtonText}>
-              {isLoading ? 'Đang lưu...' : (isEdit ? 'Cập nhật' : 'Tạo mới')}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.email}
+              onChangeText={(text) => setFormData({ ...formData, email: text })}
+              placeholder="Nhập email"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+          </View>
 
-          {isEdit && (
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Địa chỉ</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.diaChi}
+              onChangeText={(text) => setFormData({ ...formData, diaChi: text })}
+              placeholder="Nhập địa chỉ"
+              multiline
+              numberOfLines={2}
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Ngày sinh</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.ngaySinh}
+              onChangeText={(text) => setFormData({ ...formData, ngaySinh: text })}
+              placeholder="YYYY-MM-DD"
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Giới tính</Text>
+            <View style={styles.genderContainer}>
+              {['NAM', 'NU', 'KHAC'].map((gender) => (
+                <TouchableOpacity
+                  key={gender}
+                  style={[
+                    styles.genderButton,
+                    formData.gioiTinh === gender && styles.genderButtonActive,
+                  ]}
+                  onPress={() => setFormData({ ...formData, gioiTinh: gender as 'NAM' | 'NU' | 'KHAC' })}
+                >
+                  <Text
+                    style={[
+                      styles.genderButtonText,
+                      formData.gioiTinh === gender && styles.genderButtonTextActive,
+                    ]}
+                  >
+                    {gender === 'NAM' ? 'Nam' : gender === 'NU' ? 'Nữ' : 'Khác'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.buttonRow}>
             <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => navigation.goBack()}
+              style={[styles.saveButton, isLoading && styles.saveButtonDisabled]}
+              onPress={handleSave}
+              disabled={isLoading}
             >
-              <Text style={styles.cancelButtonText}>Hủy</Text>
+              <Text style={styles.saveButtonText}>
+                {isLoading ? 'Đang lưu...' : (isEdit ? 'Cập nhật' : 'Tạo mới')}
+              </Text>
             </TouchableOpacity>
-          )}
+
+            {isEdit && (
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => navigation.goBack()}
+              >
+                <Text style={styles.cancelButtonText}>Hủy</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -146,12 +215,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: 'white',
   },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 20,
+  },
   saveButton: {
+    flex: 1,
     backgroundColor: '#007AFF',
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
-    marginTop: 20,
   },
   saveButtonDisabled: {
     backgroundColor: '#ccc',
@@ -162,17 +236,43 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   cancelButton: {
+    flex: 1,
     backgroundColor: 'white',
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
-    marginTop: 12,
     borderWidth: 1,
     borderColor: '#ddd',
   },
   cancelButtonText: {
     color: '#666',
     fontSize: 16,
+  },
+  genderContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  genderButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    backgroundColor: 'white',
+    alignItems: 'center',
+  },
+  genderButtonActive: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  genderButtonText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  genderButtonTextActive: {
+    color: 'white',
+    fontWeight: '600',
   },
 });
 
