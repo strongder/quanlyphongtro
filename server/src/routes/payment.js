@@ -5,6 +5,7 @@ const qs = require("qs");
 const vnpConfig = require("../config/vnpay.config");
 const { db } = require("../db");
 const { authRequired } = require("../middlewares/auth");
+const app = require("../app");
 
 const router = express.Router();
 
@@ -104,165 +105,6 @@ router.post("/vnpay/create", authRequired, (req, res) => {
   });
 });
 
-// VNPay callback (IPN)
-// VNPay callback (redirect từ web)
-router.get("/vnpay/callback", (req, res) => {
-  let vnp_Params = { ...req.query };
-  const secureHash = vnp_Params.vnp_SecureHash;
-
-  // Xóa các trường không cần hash
-  delete vnp_Params.vnp_SecureHash;
-  delete vnp_Params.vnp_SecureHashType;
-
-  // Tạo chữ ký lại
-  const { sortedParams } = buildSecureHash(vnp_Params);
-  const signData = qs.stringify(sortedParams, { encode: false });
-  const signed = crypto
-    .createHmac("sha512", vnpConfig.vnp_HashSecret)
-    .update(Buffer.from(signData, "utf-8"))
-    .digest("hex");
-
-  if (secureHash !== signed) {
-    console.error("Invalid signature:", { secureHash, signed, signData });
-    return res.send(`
-      <html>
-        <head><title>Thanh toán thất bại</title></head>
-        <body style="font-family: Arial; text-align:center; padding:40px;">
-          <h1>❌ Lỗi xác thực chữ ký</h1>
-          <p>Không thể xác minh giao dịch.</p>
-          <a href="quanlyphongtro://payment-failed">← Quay lại ứng dụng</a>
-        </body>
-      </html>
-    `);
-  }
-
-  const transactionId = vnp_Params.vnp_TxnRef;
-  const responseCode = vnp_Params.vnp_ResponseCode;
-
-  try {
-    let paymentStatus = "FAILED";
-    if (responseCode === "00") paymentStatus = "SUCCESS";
-    else if (responseCode === "24") paymentStatus = "CANCELLED";
-
-    const invoiceId = extractInvoiceId(vnp_Params.vnp_OrderInfo);
-    if (!invoiceId) {
-      return res.send(`
-        <html>
-          <head><title>Thanh toán thất bại</title></head>
-          <body style="font-family: Arial; text-align:center; padding:40px;">
-            <h1>❌ Không tìm thấy hóa đơn</h1>
-            <a href="quanlyphongtro://payment-failed">← Quay lại ứng dụng</a>
-          </body>
-        </html>
-      `);
-    }
-
-    const invoice = db
-      .prepare("SELECT * FROM Invoice WHERE id = ?")
-      .get(invoiceId);
-    if (!invoice) {
-      return res.send(`
-        <html>
-          <head><title>Thanh toán thất bại</title></head>
-          <body style="font-family: Arial; text-align:center; padding:40px;">
-            <h1>❌ Hóa đơn không tồn tại</h1>
-            <a href="quanlyphongtro://payment-failed">← Quay lại ứng dụng</a>
-          </body>
-        </html>
-      `);
-    }
-
-    // Nếu đã thanh toán rồi
-    if (invoice.status === "PAID") {
-      return res.send(`
-        <html>
-          <head><title>Đã thanh toán</title></head>
-          <body style="font-family: Arial; text-align:center; padding:40px;">
-            <h1>✅ Hóa đơn đã thanh toán</h1>
-            <a href="quanlyphongtro://payment-success?invoiceId=${invoiceId}">← Quay lại ứng dụng</a>
-          </body>
-        </html>
-      `);
-    }
-
-    // Lưu giao dịch
-    const existingPayment = db
-      .prepare("SELECT * FROM Payment WHERE transactionId = ?")
-      .get(transactionId);
-    if (existingPayment) {
-      db.prepare(
-        `
-        UPDATE Payment SET status = ?, responseCode = ?, paidAt = datetime('now')
-        WHERE transactionId = ?
-      `
-      ).run(paymentStatus, responseCode, transactionId);
-    } else {
-      db.prepare(
-        `
-        INSERT INTO Payment (invoiceId, transactionId, amount, status, responseCode, paidAt)
-        VALUES (?, ?, ?, ?, ?, datetime('now'))
-      `
-      ).run(
-        invoiceId,
-        transactionId,
-        vnp_Params.vnp_Amount / 100,
-        paymentStatus,
-        responseCode
-      );
-    }
-
-    if (paymentStatus === "SUCCESS") {
-      db.prepare(
-        `
-        UPDATE Invoice SET status = 'PAID', paidAt = datetime('now')
-        WHERE id = ?
-      `
-      ).run(invoiceId);
-      const deepLink = `quanlyphongtro://payment-callback?invoiceId=${invoiceId}&responseCode=${responseCode}`;
-      return res.send(`
-        <html>
-          <head><title>Thanh toán thành công</title></head>
-          <body style="font-family: Arial; text-align:center; padding:40px;">
-            <h1>✅ Thanh toán thành công</h1>
-            <p>Mã hóa đơn: ${invoiceId}</p>
-            <p>Số tiền: ${(vnp_Params.vnp_Amount / 100).toLocaleString(
-              "vi-VN"
-            )} VND</p>
-            <script>
-        setTimeout(() => {
-          window.location.href = '${deepLink}';
-        }, 2000);
-      </script>
-      <p><a href="${deepLink}">Nhấn vào đây nếu không tự động chuyển</a></p>
-          </body>
-        </html>
-      `);
-    } else {
-      return res.send(`
-        <html>
-          <head><title>Thanh toán thất bại</title></head>
-          <body style="font-family: Arial; text-align:center; padding:40px;">
-            <h1>❌ Thanh toán thất bại</h1>
-            <p>Mã lỗi: ${responseCode}</p>
-            <a href="quanlyphongtro://payment-failed">← Quay lại ứng dụng</a>
-          </body>
-        </html>
-      `);
-    }
-  } catch (e) {
-    console.error("Callback error:", e);
-    return res.send(`
-      <html>
-        <head><title>Lỗi hệ thống</title></head>
-        <body style="font-family: Arial; text-align:center; padding:40px;">
-          <h1>❌ Lỗi hệ thống</h1>
-          <p>${e.message}</p>
-          <a href="quanlyphongtro://payment-failed">← Quay lại ứng dụng</a>
-        </body>
-      </html>
-    `);
-  }
-});
 
 // Kiểm tra trạng thái thanh toán
 router.get("/vnpay/status/:invoiceId", authRequired, (req, res) => {
@@ -282,8 +124,12 @@ router.get("/vnpay/status/:invoiceId", authRequired, (req, res) => {
     .get(invoiceId);
 
   return res.json({
+    success: true,
     invoiceId,
     invoiceStatus: invoice.status,
+    tongCong: invoice.tongCong,
+    ky: invoice.ky,
+    roomId: invoice.roomId,
     payment: payment
       ? {
           id: payment.id,
@@ -297,5 +143,109 @@ router.get("/vnpay/status/:invoiceId", authRequired, (req, res) => {
       : null,
   });
 });
+
+/**
+ * Endpoint để app lấy chi tiết giao dịch sau khi redirect từ VNPay
+ * App gọi khi user quay lại từ deep link
+ */
+router.get("/transaction/:transactionId", authRequired, (req, res) => {
+  const { transactionId } = req.params;
+
+  const payment = db
+    .prepare("SELECT * FROM Payment WHERE transactionId = ?")
+    .get(transactionId);
+
+  if (!payment) {
+    return res.status(404).json({ error: "Transaction not found" });
+  }
+
+  const invoice = db
+    .prepare("SELECT * FROM Invoice WHERE id = ?")
+    .get(payment.invoiceId);
+
+  return res.json({
+    success: true,
+    payment: {
+      id: payment.id,
+      invoiceId: payment.invoiceId,
+      transactionId: payment.transactionId,
+      amount: payment.amount,
+      status: payment.status,
+      responseCode: payment.responseCode,
+      paidAt: payment.paidAt,
+      createdAt: payment.createdAt,
+    },
+    invoice: invoice
+      ? {
+          id: invoice.id,
+          tongCong: invoice.tongCong,
+          status: invoice.status,
+          ky: invoice.ky,
+          roomId: invoice.roomId,
+        }
+      : null,
+  });
+});
+
+router.get('/vnpay/callback', (req, res) => {
+  const vnp_Params = { ...req.query };
+  const secureHash = vnp_Params.vnp_SecureHash;
+  delete vnp_Params.vnp_SecureHash;
+  delete vnp_Params.vnp_SecureHashType;
+
+  const { sortedParams } = buildSecureHash(vnp_Params);
+  const signData = qs.stringify(sortedParams, { encode: false });
+  const signed = crypto.createHmac('sha512', vnpConfig.vnp_HashSecret)
+    .update(Buffer.from(signData, 'utf-8'))
+    .digest('hex');
+
+  const RETURN_BASE = 'http://192.168.5.41:3000/vnpay-return'; // URL tĩnh để WebView bắt
+  const buildReturn = (status, code = '', invoiceId = '') =>
+    `${RETURN_BASE}?status=${status}&vnp_ResponseCode=${code}&invoiceId=${invoiceId}`;
+
+  if (secureHash !== signed) {
+    return res.redirect(buildReturn('failed', 'INVALID_SIGNATURE'));
+  }
+
+  const transactionId = vnp_Params.vnp_TxnRef;
+  const responseCode = vnp_Params.vnp_ResponseCode;
+  const invoiceId = extractInvoiceId(vnp_Params.vnp_OrderInfo);
+
+  try {
+    if (!invoiceId) return res.redirect(buildReturn('failed', 'NO_INVOICE'));
+
+    const invoice = db.prepare('SELECT * FROM Invoice WHERE id = ?').get(invoiceId);
+    if (!invoice) return res.redirect(buildReturn('failed', 'INVOICE_NOT_FOUND'));
+
+    let paymentStatus = 'FAILED';
+    if (responseCode === '00') paymentStatus = 'SUCCESS';
+    else if (responseCode === '24') paymentStatus = 'CANCELLED';
+
+    const existingPayment = db.prepare('SELECT * FROM Payment WHERE transactionId = ?').get(transactionId);
+    if (existingPayment) {
+      db.prepare(
+        `UPDATE Payment SET status = ?, responseCode = ?, paidAt = datetime('now') WHERE transactionId = ?`
+      ).run(paymentStatus, responseCode, transactionId);
+    } else {
+      db.prepare(
+        `INSERT INTO Payment (invoiceId, transactionId, amount, status, responseCode, paidAt) VALUES (?, ?, ?, ?, ?, datetime('now'))`
+      ).run(invoiceId, transactionId, vnp_Params.vnp_Amount / 100, paymentStatus, responseCode);
+    }
+
+    if (paymentStatus === 'SUCCESS') {
+      db.prepare(`UPDATE Invoice SET status = 'PAID', paidAt = datetime('now') WHERE id = ?`).run(invoiceId);
+      return res.redirect(buildReturn('success', responseCode, invoiceId));
+    }
+    if (paymentStatus === 'CANCELLED') {
+      return res.redirect(buildReturn('cancelled', responseCode, invoiceId));
+    }
+    return res.redirect(buildReturn('failed', responseCode, invoiceId));
+  } catch (err) {
+    console.error('Callback error:', err);
+    return res.redirect(buildReturn('failed', 'SERVER_ERROR'));
+  }
+});
+
+
 
 module.exports = router;
