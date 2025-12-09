@@ -1,6 +1,6 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
-import { AuthResponse, User, Room, Tenant, MeterReading, Invoice, PaymentStatusResponse } from '../types';
+import { AuthResponse, User, Room, Tenant, MeterReading, Invoice, PaymentResponse,PaymentStatusResponse } from '../types';
 import * as WebBrowser from 'expo-web-browser';
 
 // Sử dụng IP thay vì localhost để app có thể kết nối từ thiết bị thật

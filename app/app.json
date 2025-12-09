@@ -11,12 +11,16 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+
     "scheme": "quanlyphongtro",
+
     "assetBundlePatterns": ["**/*"],
+
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.quanlyphongtro.app"
     },
+
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -27,24 +31,26 @@
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE"
       ],
+
       "intentFilters": [
         {
           "action": "VIEW",
-          "autoVerify": true,
+          "autoVerify": false,
           "data": [
             {
               "scheme": "quanlyphongtro",
               "host": "*"
             }
-        
           ],
           "category": ["BROWSABLE", "DEFAULT"]
         }
       ]
     },
+
     "web": {
       "favicon": "./assets/favicon.png"
     },
+
     "plugins": [
       [
         "expo-notifications",
@@ -54,6 +60,7 @@
         }
       ]
     ],
+
     "extra": {
       "eas": {
         "projectId": "your-project-id"
