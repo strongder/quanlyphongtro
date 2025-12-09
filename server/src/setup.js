@@ -36,11 +36,11 @@ console.log('   ✓ Settings created\n');
 
 // Seed Users
 console.log('3. Seeding Users...');
-const managerHash = bcrypt.hashSync('manager123', 10);
+const managerHash = bcrypt.hashSync('admin123', 10);
 const managerEncrypted = encryptUser({ name: 'Quản lý' });
 
 db.prepare('INSERT INTO User(role, username, name, passwordHash, status) VALUES (?,?,?,?,?)')
-  .run('MANAGER', 'manager', managerEncrypted.name, managerHash, 'ACTIVE');
+  .run('MANAGER', 'admin', managerEncrypted.name, managerHash, 'ACTIVE');
 
 const tenantUsers = [];
 for (let i = 1; i <= 12; i++) {
@@ -129,7 +129,7 @@ console.log(`   ✓ Assigned tenants to rooms\n`);
 
 console.log('✅ Database setup completed!\n');
 console.log('📋 Summary:');
-console.log('   - 1 Manager: username=manager, password=manager123');
+console.log('   - 1 Manager: username=admin, password=admin123');
 console.log('   - 12 Tenants: username=tenant1-12, password=tenant{N}');
 console.log('   - 10 Rooms with dienTich & taiSan (JSON)');
 console.log('   - Settings: donGiaDien=3500, donGiaNuoc=20000\n');

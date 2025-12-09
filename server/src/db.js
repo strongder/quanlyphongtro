@@ -93,8 +93,9 @@ function runMigrations() {
       invoiceId INTEGER NOT NULL REFERENCES Invoice(id) ON DELETE CASCADE,
       transactionId TEXT NOT NULL UNIQUE,
       amount REAL NOT NULL,
-      status TEXT NOT NULL CHECK(status IN ('SUCCESS','FAILED','CANCELLED')) DEFAULT 'FAILED',
+      status TEXT NOT NULL CHECK(status IN ('SUCCESS','FAILED','CANCELLED','PENDING')) DEFAULT 'PENDING',
       responseCode TEXT,
+      paymentMethod TEXT CHECK(paymentMethod IN ('VNPAY','MOMO')) DEFAULT 'VNPAY',
       paidAt TEXT,
       createdAt TEXT NOT NULL DEFAULT (datetime('now'))
     );

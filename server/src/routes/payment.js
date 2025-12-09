@@ -137,6 +137,7 @@ router.get("/vnpay/status/:invoiceId", authRequired, (req, res) => {
           amount: payment.amount,
           status: payment.status,
           responseCode: payment.responseCode,
+          paymentMethod: payment.paymentMethod,
           paidAt: payment.paidAt,
           createdAt: payment.createdAt,
         }
@@ -172,6 +173,7 @@ router.get("/transaction/:transactionId", authRequired, (req, res) => {
       amount: payment.amount,
       status: payment.status,
       responseCode: payment.responseCode,
+      paymentMethod: payment.paymentMethod,
       paidAt: payment.paidAt,
       createdAt: payment.createdAt,
     },
@@ -228,7 +230,7 @@ router.get('/vnpay/callback', (req, res) => {
       ).run(paymentStatus, responseCode, transactionId);
     } else {
       db.prepare(
-        `INSERT INTO Payment (invoiceId, transactionId, amount, status, responseCode, paidAt) VALUES (?, ?, ?, ?, ?, datetime('now'))`
+        `INSERT INTO Payment (invoiceId, transactionId, amount, status, responseCode, paymentMethod, paidAt) VALUES (?, ?, ?, ?, ?, 'VNPAY', datetime('now'))`
       ).run(invoiceId, transactionId, vnp_Params.vnp_Amount / 100, paymentStatus, responseCode);
     }
 
