@@ -76,7 +76,7 @@ app.use("/api", globalLimiter);
 // Routers
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/users", require("./routes/users"));
-app.use("/api/payments", require("./routes/payment"));
+app.use("/api/payment", require("./routes/payment"));
 app.use("/api/rooms", authRequired, require("./routes/rooms"));
 app.use("/api/tenants", authRequired, require("./routes/tenants"));
 app.use(
