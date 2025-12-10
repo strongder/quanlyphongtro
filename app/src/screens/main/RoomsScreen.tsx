@@ -165,15 +165,7 @@ const RoomsScreen = ({ navigation }: any) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Quản lý phòng</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => navigation.navigate('RoomDetail', { room: null })}
-        >
-          <Ionicons name="add" size={24} color="white" />
-        </TouchableOpacity>
-      </View>
+      
 
       <View style={styles.filterContainer}>
         {filterButtons.map((button) => (
@@ -193,6 +185,12 @@ const RoomsScreen = ({ navigation }: any) => {
             </Text>
           </TouchableOpacity>
         ))}
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => navigation.navigate('RoomDetail', { room: null })}
+        >
+          <Ionicons name="add" size={24} color="white" />
+        </TouchableOpacity>
       </View>
 
       <FlatList
@@ -251,6 +249,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 16,
     backgroundColor: 'white',
+    justifyContent: 'space-between',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },

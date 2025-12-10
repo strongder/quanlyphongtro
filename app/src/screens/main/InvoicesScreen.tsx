@@ -14,7 +14,7 @@ import { invoiceService, roomService } from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
 import * as SecureStore from "expo-secure-store";
 import { tenantRole } from "../../core/contain";
-import { VNPayModal } from "../../components/VNPayModal";
+import { PaymentModal } from "../../components/PaymentModal";
 import { InvoiceItem } from "../../components/InvoiceItem";
 
 const InvoicesScreen = ({ navigation }: any) => {
@@ -26,7 +26,7 @@ const InvoicesScreen = ({ navigation }: any) => {
     "all"
   );
   const [selectedKy, setSelectedKy] = useState(getCurrentKy());
-  const [vnpayModalVisible, setVnpayModalVisible] = useState(false);
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<Invoice | null>(null);
 
   function getCurrentKy() {
@@ -78,15 +78,12 @@ const InvoicesScreen = ({ navigation }: any) => {
   };
 
 
-  const handleVNPayPayment = (invoice: Invoice) => {
+  const handlePayment = (invoice: Invoice) => {
     setSelectedInvoiceForPayment(invoice);
-    setVnpayModalVisible(true);
+    setPaymentModalVisible(true);
   };
 
-  const handlePaymentSuccess = () => {
-    loadData();
-    Alert.alert("Thành công", "Thanh toán hóa đơn thành công!");
-  };
+  
 
   const handlePaymentFailed = () => {
     // Có thể load lại dữ liệu để kiểm tra trạng thái
@@ -178,7 +175,7 @@ const InvoicesScreen = ({ navigation }: any) => {
           {user?.role === "TENANT" && item.status === "UNPAID" && (
             <TouchableOpacity
               style={[styles.actionButton, styles.vnpayButton]}
-              onPress={() => handleVNPayPayment(item)}
+                onPress={() => handlePayment(item)}
             >
               <Ionicons name="card-outline" size={20} color="white" />
               <Text style={[styles.actionText, styles.vnpayButtonText]}>Thanh toán</Text>
@@ -212,10 +209,6 @@ const InvoicesScreen = ({ navigation }: any) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Danh sách hóa đơn</Text>
-      </View>
-
       <View style={styles.filterContainer}>
         <View style={styles.kyFilter}>
           <Text style={styles.filterLabel}>Kỳ:</Text>
@@ -287,16 +280,14 @@ const InvoicesScreen = ({ navigation }: any) => {
       />
 
       {selectedInvoiceForPayment && (
-        <VNPayModal
-          visible={vnpayModalVisible}
+        <PaymentModal
+          visible={paymentModalVisible}
           invoiceId={selectedInvoiceForPayment.id}
           invoiceAmount={selectedInvoiceForPayment.tongCong}
           onClose={() => {
-            setVnpayModalVisible(false);
+            setPaymentModalVisible(false);
             setSelectedInvoiceForPayment(null);
           }}
-          onPaymentSuccess={handlePaymentSuccess}
-          onPaymentFailed={handlePaymentFailed}
         />
       )}
     </View>

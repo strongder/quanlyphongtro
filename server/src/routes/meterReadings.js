@@ -54,6 +54,9 @@ router.post('/:id/lock', (req, res) => {
   res.json(updated);
   // sau khi khoa thi luu vao hoa don
   const room = db.prepare('SELECT * FROM Room WHERE id = ?').get(r.roomId);
+  const roomTenant = db.prepare('SELECT tenantId FROM RoomTenant WHERE roomId = ? AND isPrimaryTenant = 1').get(r.roomId);
+  if (!roomTenant) return; // Bỏ qua nếu phòng không có tenant chính
+  
   const donGiaDien = db.prepare('SELECT value FROM Setting WHERE key = ?').get('donGiaDien').value;
   const donGiaNuoc = db.prepare('SELECT value FROM Setting WHERE key = ?').get('donGiaNuoc').value;
   const dienTieuThu = Math.max(0, (r.dienSoMoi || 0) - (r.dienSoCu || 0));
@@ -61,8 +64,8 @@ router.post('/:id/lock', (req, res) => {
   const tienPhong = room.giaThue;
   const tongCong = tienPhong + dienTieuThu * donGiaDien + nuocTieuThu * donGiaNuoc;
   db.prepare(
-    'INSERT INTO Invoice (roomId, ky, tienPhong, dienTieuThu, nuocTieuThu, donGiaDien, donGiaNuoc, tongCong) VALUES (?,?,?,?,?,?,?,?)'
-  ).run(r.roomId, r.ky, tienPhong, dienTieuThu, nuocTieuThu, donGiaDien, donGiaNuoc, tongCong);
+    'INSERT INTO Invoice (roomId, tenantId, ky, tienPhong, dienTieuThu, nuocTieuThu, donGiaDien, donGiaNuoc, tongCong) VALUES (?,?,?,?,?,?,?,?,?)'
+  ).run(r.roomId, roomTenant.tenantId, r.ky, tienPhong, dienTieuThu, nuocTieuThu, donGiaDien, donGiaNuoc, tongCong);
 });
 // api lấy chi số theo phòng và kỳ gần nhất ( ví dụ : tháng 8: số điện:90, số nước:50; tháng 9 không sử dung thì tháng 10 vẫn lấy số tháng 8 để tính tiền)
 router.get('/latest/:roomId', (req, res) => {

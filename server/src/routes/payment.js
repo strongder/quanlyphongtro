@@ -1,147 +1,290 @@
 const express = require("express");
-const crypto = require("crypto");
-const moment = require("moment");
-const qs = require("qs");
-const vnpConfig = require("../config/vnpay.config");
 const { db } = require("../db");
 const { authRequired } = require("../middlewares/auth");
-const app = require("../app");
+const { decryptTenant } = require("../utils/encryption");
 
 const router = express.Router();
 
-// Helper: VNPay requires keys sorted and values URL-encoded with + for spaces
-function sortObject(obj) {
-  const sorted = {};
-  Object.keys(obj)
-    .sort()
-    .forEach((key) => {
-      sorted[key] = encodeURIComponent(obj[key]).replace(/%20/g, "+");
-    });
-  return sorted;
-}
-
-function buildSecureHash(params) {
-  const sortedParams = sortObject(params);
-  const signData = qs.stringify(sortedParams, { encode: false });
-  const secureHash = crypto
-    .createHmac("sha512", vnpConfig.vnp_HashSecret)
-    .update(Buffer.from(signData, "utf-8"))
-    .digest("hex");
-  return { sortedParams, secureHash };
-}
-
-function extractInvoiceId(orderInfo) {
-  if (!orderInfo) return NaN;
-  const parts = orderInfo.split("_");
-  if (parts.length < 2) return NaN;
-  return parseInt(parts[1], 10);
-}
-
-// Tạo link thanh toán VNPay
-router.post("/vnpay/create", authRequired, (req, res) => {
-  const { invoiceId, bankCode } = req.body;
-
-  if (!invoiceId) {
-    return res.status(400).json({ error: "invoiceId required" });
+/**
+ * Admin API: Lấy danh sách tất cả payments với filter
+ * Query params: status, paymentMethod, startDate, endDate, limit, offset
+ */
+router.get("/", authRequired, (req, res) => {
+  const user = req.user;
+  if (user.role !== "MANAGER") {
+    return res.status(403).json({ error: "Forbidden: Admin only" });
   }
 
-  // Lấy thông tin hóa đơn
-  const invoice = db
-    .prepare("SELECT * FROM Invoice WHERE id = ?")
-    .get(invoiceId);
-  if (!invoice) {
-    return res.status(404).json({ error: "Invoice not found" });
+  const { status, paymentMethod, startDate, endDate, limit = 20, offset = 0 } = req.query;
+  let query = `SELECT p.*, t.hoTen as tenantName, t.soDienThoai, i.ky, i.roomId FROM Payment p 
+              JOIN Tenant t ON p.tenantId = t.id
+              JOIN Invoice i ON p.invoiceId = i.id
+              WHERE 1=1`;
+  const params = [];
+
+  if (status) {
+    query += " AND p.status = ?";
+    params.push(status);
+  }
+  if (paymentMethod) {
+    query += " AND p.paymentMethod = ?";
+    params.push(paymentMethod);
+  }
+  if (startDate) {
+    query += " AND p.createdAt >= ?";
+    params.push(startDate);
+  }
+  if (endDate) {
+    query += " AND p.createdAt <= ?";
+    params.push(endDate);
   }
 
-  if (invoice.status === "PAID") {
-    return res.status(400).json({ error: "Invoice already paid" });
+  query += " ORDER BY p.createdAt DESC LIMIT ? OFFSET ?";
+  params.push(parseInt(limit), parseInt(offset));
+
+  const payments = db.prepare(query).all(...params);
+  
+  // Giải mã số điện thoại
+  const decryptedPayments = payments.map(payment => {
+    try {
+      const decrypted = decryptTenant({ soDienThoai: payment.soDienThoai });
+      return {
+        ...payment,
+        soDienThoai: decrypted.soDienThoai
+      };
+    } catch (e) {
+      return payment; // Nếu lỗi giải mã, giữ nguyên
+    }
+  });
+
+  // Lấy total count
+  let countQuery = `SELECT COUNT(*) as total FROM Payment p 
+                   JOIN Tenant t ON p.tenantId = t.id
+                   WHERE 1=1`;
+  const countParams = [];
+  if (status) {
+    countQuery += " AND p.status = ?";
+    countParams.push(status);
+  }
+  if (paymentMethod) {
+    countQuery += " AND p.paymentMethod = ?";
+    countParams.push(paymentMethod);
+  }
+  if (startDate) {
+    countQuery += " AND p.createdAt >= ?";
+    countParams.push(startDate);
+  }
+  if (endDate) {
+    countQuery += " AND p.createdAt <= ?";
+    countParams.push(endDate);
   }
 
-  let ipAddr =
-    req.headers["x-forwarded-for"] ||
-    req.connection?.remoteAddress ||
-    req.socket?.remoteAddress ||
-    req.connection?.socket?.remoteAddress;
+  const { total } = db.prepare(countQuery).get(...countParams) || { total: 0 };
 
-  // Tạo transactionId (8 số ngẫu nhiên như Java)
-  const transactionId = Math.floor(
-    10000000 + Math.random() * 90000000
-  ).toString();
-
-  const createDate = moment().format("YYYYMMDDHHmmss");
-  const expireDate = moment().add(15, "minutes").format("YYYYMMDDHHmmss");
-
-  let vnp_Params = {
-    vnp_Version: vnpConfig.vnp_Version,
-    vnp_Command: vnpConfig.vnp_Command,
-    vnp_TmnCode: vnpConfig.vnp_TmnCode,
-    vnp_Amount: Math.round(invoice.tongCong * 100), // VNPay yêu cầu nhân 100
-    vnp_CurrCode: "VND",
-    vnp_TxnRef: transactionId,
-    vnp_OrderInfo: `Invoice_${invoiceId}_Room${invoice.roomId}_Ky${invoice.ky}`,
-    vnp_OrderType: vnpConfig.vnp_OrderType,
-    vnp_ReturnUrl: vnpConfig.vnp_ReturnUrl,
-    vnp_IpAddr: ipAddr,
-    vnp_CreateDate: createDate,
-    vnp_ExpireDate: expireDate,
-    vnp_Locale: "vn",
-  };
-
-  if (bankCode) {
-    vnp_Params["vnp_BankCode"] = bankCode;
-  }
-
-  const { sortedParams, secureHash } = buildSecureHash(vnp_Params);
-  const signedParams = { ...sortedParams, vnp_SecureHash: secureHash };
-
-  const paymentUrl =
-    vnpConfig.vnp_Url + "?" + qs.stringify(signedParams, { encode: false });
-
-  return res.json({
-    code: "00",
-    message: "Payment URL created successfully",
-    transactionId,
-    paymentUrl,
+  res.json({
+    data: decryptedPayments,
+    pagination: {
+      total,
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      pages: Math.ceil(total / limit),
+    },
   });
 });
 
+/**
+ * Admin API: Lấy thống kê payments
+ */
+router.get("/stats", authRequired, (req, res) => {
+  const user = req.user;
+  if (user.role !== "MANAGER") {
+    return res.status(403).json({ error: "Forbidden: Admin only" });
+  }
 
-// Kiểm tra trạng thái thanh toán
-router.get("/vnpay/status/:invoiceId", authRequired, (req, res) => {
+  const stats = db
+    .prepare(
+      `SELECT 
+        COUNT(*) as totalPayments,
+        SUM(CASE WHEN p.status = 'SUCCESS' THEN p.amount ELSE 0 END) as totalSuccessAmount,
+        COUNT(CASE WHEN p.status = 'SUCCESS' THEN 1 END) as successCount,
+        COUNT(CASE WHEN p.status = 'FAILED' THEN 1 END) as failedCount,
+        COUNT(CASE WHEN p.status = 'PENDING' THEN 1 END) as pendingCount,
+        p.paymentMethod
+      FROM Payment p
+      GROUP BY p.paymentMethod`
+    )
+    .all();
+
+  res.json(stats);
+});
+
+/**
+ * Admin/Tenant API: Lấy payments của hóa đơn cụ thể
+ */
+router.get("/invoice/:invoiceId", authRequired, (req, res) => {
+  const user = req.user;
   const { invoiceId } = req.params;
 
   const invoice = db
     .prepare("SELECT * FROM Invoice WHERE id = ?")
     .get(invoiceId);
+
   if (!invoice) {
     return res.status(404).json({ error: "Invoice not found" });
   }
 
-  const payment = db
-    .prepare(
-      "SELECT * FROM Payment WHERE invoiceId = ? ORDER BY createdAt DESC LIMIT 1"
-    )
-    .get(invoiceId);
+  // Kiểm quyền: tenant chỉ xem payments của hóa đơn của họ
+  if (user.role !== "MANAGER") {
+    const tenant = db
+      .prepare("SELECT * FROM Tenant WHERE userId = ?")
+      .get(user.id);
+    if (!tenant || tenant.id !== invoice.tenantId) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+  }
 
-  return res.json({
-    success: true,
-    invoiceId,
-    invoiceStatus: invoice.status,
-    tongCong: invoice.tongCong,
-    ky: invoice.ky,
-    roomId: invoice.roomId,
-    payment: payment
-      ? {
-          id: payment.id,
-          transactionId: payment.transactionId,
-          amount: payment.amount,
-          status: payment.status,
-          responseCode: payment.responseCode,
-          paymentMethod: payment.paymentMethod,
-          paidAt: payment.paidAt,
-          createdAt: payment.createdAt,
-        }
-      : null,
+  const payments = db
+    .prepare(
+      `SELECT p.*, t.hoTen as tenantName, t.soDienThoai FROM Payment p
+       JOIN Tenant t ON p.tenantId = t.id
+       WHERE p.invoiceId = ? 
+       ORDER BY p.createdAt DESC`
+    )
+    .all(invoiceId);
+
+  // Giải mã số điện thoại
+  const decryptedPayments = payments.map(payment => {
+    try {
+      const decrypted = decryptTenant({ soDienThoai: payment.soDienThoai });
+      return { ...payment, soDienThoai: decrypted.soDienThoai };
+    } catch (e) {
+      return payment;
+    }
+  });
+
+  res.json({
+    invoice: {
+      id: invoice.id,
+      amount: invoice.tongCong,
+      dueDate: invoice.ky,
+      status: invoice.status,
+    },
+    payments: decryptedPayments,
+  });
+});
+
+/**
+ * Tenant API: Lấy tất cả payments của tenant
+ */
+router.get("/tenant/me", authRequired, (req, res) => {
+  const user = req.user;
+  console.log("Authenticated user:", user);
+  // Lấy tenant info
+  const tenant = db
+    .prepare("SELECT * FROM Tenant WHERE userId = ?")
+    .get(user.userId);
+
+  if (!tenant) {
+    return res.status(404).json({ error: "Tenant not found" });
+  }
+
+  const payments = db
+    .prepare(
+      `SELECT p.*, i.tongCong as invoiceAmount, i.ky, i.roomId, t.hoTen as tenantName, t.soDienThoai
+       FROM Payment p
+       JOIN Invoice i ON p.invoiceId = i.id
+       JOIN Tenant t ON p.tenantId = t.id
+       WHERE p.tenantId = ?
+       ORDER BY p.createdAt DESC`
+    )
+    .all(tenant.id);
+
+  // Giải mã số điện thoại
+  const decryptedPayments = payments.map(payment => {
+    try {
+      const decrypted = decryptTenant({ soDienThoai: payment.soDienThoai });
+      return { ...payment, soDienThoai: decrypted.soDienThoai };
+    } catch (e) {
+      return payment;
+    }
+  });
+
+  res.json({
+    tenant: {
+      id: tenant.id,
+      name: tenant.hoTen,
+    },
+    payments: decryptedPayments,
+  });
+});
+
+/**
+ * Admin API: Lấy payments của tenant cụ thể
+ */
+router.get("/tenant/:tenantId", authRequired, (req, res) => {
+  const user = req.user;
+  if (user.role !== "MANAGER") {
+    return res.status(403).json({ error: "Forbidden: Admin only" });
+  }
+
+  const { tenantId } = req.params;
+  const { status, limit = 20, offset = 0 } = req.query;
+
+  const tenant = db
+    .prepare("SELECT * FROM Tenant WHERE id = ?")
+    .get(tenantId);
+
+  if (!tenant) {
+    return res.status(404).json({ error: "Tenant not found" });
+  }
+
+  let query = `SELECT p.*, i.ky, i.roomId, i.tongCong as invoiceAmount FROM Payment p
+               JOIN Invoice i ON p.invoiceId = i.id
+               WHERE p.tenantId = ?`;
+  const params = [tenantId];
+
+  if (status) {
+    query += " AND p.status = ?";
+    params.push(status);
+  }
+
+  query += " ORDER BY p.createdAt DESC LIMIT ? OFFSET ?";
+  params.push(parseInt(limit), parseInt(offset));
+
+  const payments = db.prepare(query).all(...params);
+
+  // Get total count
+  let countQuery = "SELECT COUNT(*) as total FROM Payment WHERE tenantId = ?";
+  const countParams = [tenantId];
+  if (status) {
+    countQuery += " AND status = ?";
+    countParams.push(status);
+  }
+
+  const { total } = db.prepare(countQuery).get(...countParams) || { total: 0 };
+
+  // Giải mã số điện thoại tenant
+  let decryptedPhone = tenant.soDienThoai;
+  try {
+    const decrypted = decryptTenant({ soDienThoai: tenant.soDienThoai });
+    decryptedPhone = decrypted.soDienThoai;
+  } catch (e) {
+    // Keep original if decryption fails
+  }
+
+  res.json({
+    tenant: {
+      id: tenant.id,
+      name: tenant.hoTen,
+      soDienThoai: decryptedPhone,
+    },
+    payments,
+    pagination: {
+      total,
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      pages: Math.ceil(total / limit),
+    },
   });
 });
 
@@ -188,66 +331,5 @@ router.get("/transaction/:transactionId", authRequired, (req, res) => {
       : null,
   });
 });
-
-router.get('/vnpay/callback', (req, res) => {
-  const vnp_Params = { ...req.query };
-  const secureHash = vnp_Params.vnp_SecureHash;
-  delete vnp_Params.vnp_SecureHash;
-  delete vnp_Params.vnp_SecureHashType;
-
-  const { sortedParams } = buildSecureHash(vnp_Params);
-  const signData = qs.stringify(sortedParams, { encode: false });
-  const signed = crypto.createHmac('sha512', vnpConfig.vnp_HashSecret)
-    .update(Buffer.from(signData, 'utf-8'))
-    .digest('hex');
-
-  const RETURN_BASE = 'http://192.168.5.41:3000/vnpay-return'; // URL tĩnh để WebView bắt
-  const buildReturn = (status, code = '', invoiceId = '') =>
-    `${RETURN_BASE}?status=${status}&vnp_ResponseCode=${code}&invoiceId=${invoiceId}`;
-
-  if (secureHash !== signed) {
-    return res.redirect(buildReturn('failed', 'INVALID_SIGNATURE'));
-  }
-
-  const transactionId = vnp_Params.vnp_TxnRef;
-  const responseCode = vnp_Params.vnp_ResponseCode;
-  const invoiceId = extractInvoiceId(vnp_Params.vnp_OrderInfo);
-
-  try {
-    if (!invoiceId) return res.redirect(buildReturn('failed', 'NO_INVOICE'));
-
-    const invoice = db.prepare('SELECT * FROM Invoice WHERE id = ?').get(invoiceId);
-    if (!invoice) return res.redirect(buildReturn('failed', 'INVOICE_NOT_FOUND'));
-
-    let paymentStatus = 'FAILED';
-    if (responseCode === '00') paymentStatus = 'SUCCESS';
-    else if (responseCode === '24') paymentStatus = 'CANCELLED';
-
-    const existingPayment = db.prepare('SELECT * FROM Payment WHERE transactionId = ?').get(transactionId);
-    if (existingPayment) {
-      db.prepare(
-        `UPDATE Payment SET status = ?, responseCode = ?, paidAt = datetime('now') WHERE transactionId = ?`
-      ).run(paymentStatus, responseCode, transactionId);
-    } else {
-      db.prepare(
-        `INSERT INTO Payment (invoiceId, transactionId, amount, status, responseCode, paymentMethod, paidAt) VALUES (?, ?, ?, ?, ?, 'VNPAY', datetime('now'))`
-      ).run(invoiceId, transactionId, vnp_Params.vnp_Amount / 100, paymentStatus, responseCode);
-    }
-
-    if (paymentStatus === 'SUCCESS') {
-      db.prepare(`UPDATE Invoice SET status = 'PAID', paidAt = datetime('now') WHERE id = ?`).run(invoiceId);
-      return res.redirect(buildReturn('success', responseCode, invoiceId));
-    }
-    if (paymentStatus === 'CANCELLED') {
-      return res.redirect(buildReturn('cancelled', responseCode, invoiceId));
-    }
-    return res.redirect(buildReturn('failed', responseCode, invoiceId));
-  } catch (err) {
-    console.error('Callback error:', err);
-    return res.redirect(buildReturn('failed', 'SERVER_ERROR'));
-  }
-});
-
-
 
 module.exports = router;

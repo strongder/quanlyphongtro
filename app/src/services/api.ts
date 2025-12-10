@@ -1,6 +1,6 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
-import { AuthResponse, User, Room, Tenant, MeterReading, Invoice, PaymentResponse,PaymentStatusResponse } from '../types';
+import { AuthResponse, User, Room, Tenant, MeterReading, Invoice, PaymentResponse, PaymentStatusResponse, Payment, PaymentStats, PaymentFilters } from '../types';
 import * as WebBrowser from 'expo-web-browser';
 
 // Sử dụng IP thay vì localhost để app có thể kết nối từ thiết bị thật
@@ -265,7 +265,7 @@ export const tenantApprovalService = {
 
 export const vnpayService = {
   async createPaymentUrl(invoiceId: number, bankCode?: string): Promise<PaymentResponse> {
-    const response = await api.post('/payments/vnpay/create', {
+    const response = await api.post('/vnpay/create', {
       invoiceId,
       bankCode,
       // Backend sẽ tự thêm returnUrl từ config
@@ -274,20 +274,103 @@ export const vnpayService = {
   },
 
   async checkPaymentStatus(invoiceId: number): Promise<PaymentStatusResponse> {
-    const response = await api.get(`/payments/vnpay/status/${invoiceId}`);
+    const response = await api.get(`/vnpay/status/${invoiceId}`);
+    return response.data;
+  },
+
+};
+
+  export const momoService = {
+    async createPaymentUrl(invoiceId: number): Promise<PaymentResponse> {
+      const response = await api.post('/momo/create', {
+        invoiceId,
+      });
+      return response.data;
+    },
+
+    async checkPaymentStatus(invoiceId: number): Promise<PaymentStatusResponse> {
+      const response = await api.get(`/momo/status/${invoiceId}`);
+      return response.data;
+    },
+  };
+
+export const paymentService = {
+  /**
+   * Admin: Get all payments with filters and pagination
+   */
+  async getAllPayments(filters?: PaymentFilters): Promise<{ payments: Payment[]; total: number; pages: number }> {
+    const params = new URLSearchParams();
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.paymentMethod) params.append('paymentMethod', filters.paymentMethod);
+    if (filters?.startDate) params.append('startDate', filters.startDate);
+    if (filters?.endDate) params.append('endDate', filters.endDate);
+    const page = filters?.page || 1;
+    const limit = filters?.limit || 20;
+    const offset = (page - 1) * limit;
+    params.append('limit', limit.toString());
+    params.append('offset', offset.toString());
+    
+    const response = await api.get(`/payments?${params.toString()}`);
+    // Backend returns { data: [], pagination: { total, pages, limit, offset } }
+    return {
+      payments: response.data?.data || [],
+      total: response.data?.pagination?.total || 0,
+      pages: response.data?.pagination?.pages || 0,
+    };
+  },
+
+  /**
+   * Admin: Get payment statistics by method
+   */
+  async getPaymentStats(): Promise<any[]> {
+    const response = await api.get('/payments/stats');
+    // Backend returns array of stats with paymentMethod, totalPayments, successCount, etc
+    if (Array.isArray(response.data)) {
+      return response.data;
+    }
+    if (response.data?.stats && Array.isArray(response.data.stats)) {
+      return response.data.stats;
+    }
+    return [];
+  },
+
+  /**
+   * Get payments for a specific invoice
+   */
+  async getInvoicePayments(invoiceId: number): Promise<Payment[]> {
+    const response = await api.get(`/payments/invoice/${invoiceId}`);
     return response.data;
   },
 
   /**
-   * Mở link thanh toán VNPay
+   * Tenant: Get own payment history
    */
-  async openPaymentUrl(paymentUrl: string): Promise<boolean> {
-    try {
-      const result = await WebBrowser.openBrowserAsync(paymentUrl);
-      return result.type === 'opened';
-    } catch (error) {
-      console.error('Error opening payment URL:', error);
-      return false;
+  async getTenantPayments(): Promise<Payment[]> {
+    const response = await api.get('/payments/tenant/me');
+    // Backend returns { tenant: {...}, payments: [...] }
+    if (response.data?.payments && Array.isArray(response.data.payments)) {
+      return response.data.payments;
     }
+    if (Array.isArray(response.data)) {
+      return response.data;
+    }
+    return [];
+  },
+
+  /**
+   * Admin: Get payments for a specific tenant
+   */
+  async getTenantPaymentsById(tenantId: number): Promise<Payment[]> {
+    const response = await api.get(`/payments/tenant/${tenantId}`);
+    return response.data;
+  },
+
+  /**
+   * Get transaction details
+   */
+  async getTransactionDetails(transactionId: string): Promise<Payment> {
+    const response = await api.get(`/payments/transaction/${transactionId}`);
+    return response.data;
   },
 };
+

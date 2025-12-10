@@ -22,12 +22,15 @@ import InvoicesScreen from '../screens/main/InvoicesScreen';
 import ReportsScreen from '../screens/main/ReportsScreen';
 import SettingsScreen from '../screens/main/SettingsScreen';
 import NotificationsScreen from '../screens/main/NotificationsScreen';
+import PaymentsScreen from '../screens/main/PaymentsScreen';
+import TenantPaymentHistoryScreen from '../screens/main/TenantPaymentHistoryScreen';
 
 // Detail Screens
 import RoomDetailScreen from '../screens/detail/RoomDetailScreen';
 import TenantDetailScreen from '../screens/detail/TenantDetailScreen';
 import InvoiceDetailScreen from '../screens/detail/InvoiceDetailScreen';
 import MeterDetailScreen from '../screens/detail/MeterDetailScreen';
+import PaymentDetailScreen from '../screens/detail/PaymentDetailScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -41,6 +44,7 @@ const CustomTabBar = ({ state, descriptors, navigation }: any) => {
     { name: 'TenantApproval', label: 'Duyệt', icon: 'checkmark-circle' },
     { name: 'Meter', label: 'Chỉ số', icon: 'speedometer' },
     { name: 'Invoices', label: 'Hóa đơn', icon: 'receipt' },
+    { name: 'Payments', label: 'Thanh toán', icon: 'wallet' },
     { name: 'Reports', label: 'Báo cáo', icon: 'bar-chart' },
     { name: 'Notifications', label: 'Thông báo', icon: 'notifications' },
     { name: 'Settings', label: 'Cài đặt', icon: 'settings' },
@@ -94,15 +98,16 @@ const ManagerTabNavigator = () => (
     tabBar={(props) => <CustomTabBar {...props} />}
     screenOptions={{ headerShown: true }}
   >
-    <Tab.Screen name="Dashboard" component={DashboardScreen} />
-    <Tab.Screen name="Rooms" component={RoomsScreen} />
-    <Tab.Screen name="Tenants" component={TenantsScreen} />
-    <Tab.Screen name="TenantApproval" component={TenantApprovalScreen} />
-    <Tab.Screen name="Meter" component={MeterReadingsScreen} />
-    <Tab.Screen name="Invoices" component={InvoicesScreen} />
-    <Tab.Screen name="Reports" component={ReportsScreen} />
-    <Tab.Screen name="Notifications" component={NotificationsScreen} />
-    <Tab.Screen name="Settings" component={SettingsScreen} />
+    <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ title: 'Trang chủ' }} />
+    <Tab.Screen name="Rooms" component={RoomsScreen} options={{ title: 'Quản lý phòng' }} />
+    <Tab.Screen name="Tenants" component={TenantsScreen} options={{ title: 'Quản lý khách' }} />
+    <Tab.Screen name="TenantApproval" component={TenantApprovalScreen} options={{ title: 'Duyệt khách' }} />
+    <Tab.Screen name="Meter" component={MeterReadingsScreen} options={{ title: 'Chỉ số điện nước' }} />
+    <Tab.Screen name="Invoices" component={InvoicesScreen} options={{ title: 'Hóa đơn' }} />
+    <Tab.Screen name="Payments" component={PaymentsScreen} options={{ title: 'Thanh toán' }} />
+    <Tab.Screen name="Reports" component={ReportsScreen} options={{ title: 'Báo cáo thống kê' }} />
+    <Tab.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Thông báo' }} />
+    <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: 'Cài đặt' }} />
   </Tab.Navigator>
 );
 
@@ -113,6 +118,7 @@ const TenantTabNavigator = () => (
         let iconName: keyof typeof Ionicons.glyphMap;
         if (route.name === 'Dashboard') iconName = focused ? 'home' : 'home-outline';
         else if (route.name === 'Invoices') iconName = focused ? 'receipt' : 'receipt-outline';
+        else if (route.name === 'PaymentHistory') iconName = focused ? 'wallet' : 'wallet-outline';
         else if (route.name === 'Notifications') iconName = focused ? 'notifications' : 'notifications-outline';
         else if (route.name === 'Settings') iconName = focused ? 'settings' : 'settings-outline';
         else iconName = 'help-outline';
@@ -124,7 +130,8 @@ const TenantTabNavigator = () => (
     })}
   >
     <Tab.Screen name="Dashboard" component={TenantDashboardScreen} options={{ title: 'Trang chủ' }} />
-    <Tab.Screen name="Invoices" component={InvoicesScreen} options={{ title: 'Hóa đơn' }} />
+    <Tab.Screen name="Invoices" component={InvoicesScreen} options={{ title: 'Hóa đơn của tôi' }} />
+    <Tab.Screen name="PaymentHistory" component={TenantPaymentHistoryScreen} options={{ title: 'Lịch sử thanh toán' }} />
     <Tab.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Thông báo' }} />
     <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: 'Cài đặt' }} />
   </Tab.Navigator>
@@ -147,6 +154,7 @@ const AppNavigator = () => {
             <Stack.Screen name="TenantDetail" component={TenantDetailScreen} options={{ title: 'Chi tiết khách thuê', headerShown: true }} />
             <Stack.Screen name="InvoiceDetail" component={InvoiceDetailScreen} options={{ title: 'Chi tiết hóa đơn', headerShown: true }} />
             <Stack.Screen name="MeterDetail" component={MeterDetailScreen} options={{ title: 'Chi tiết chỉ số', headerShown: true }} />
+            <Stack.Screen name="PaymentDetail" component={PaymentDetailScreen} options={{ title: 'Chi tiết thanh toán', headerShown: true }} />
           </>
         ) : (
           <>

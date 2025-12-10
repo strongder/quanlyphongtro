@@ -100,6 +100,48 @@ export interface AuthResponse {
   status: number;
 }
 
+export interface Payment {
+  id: number;
+  invoiceId: number;
+  tenantId: number;
+  roomId: number;
+  amount: number;
+  paymentMethod: 'MOMO' | 'VNPAY';
+  transactionId?: string;
+  status: 'SUCCESS' | 'FAILED';
+  responseCode?: string;
+  paidAt?: string;
+  createdAt: string;
+  
+  // Populated fields
+  tenant?: {
+    hoTen: string;
+    soDienThoai?: string;
+  };
+  room?: {
+    maPhong: string;
+  };
+  invoice?: {
+    ky: string;
+    tongCong: number;
+  };
+}
+
+export interface PaymentStats {
+  totalAmount: number;
+  totalCount: number;
+  paymentMethod:  'MOMO' | 'VNPAY';
+}
+
+export interface PaymentFilters {
+  status?: 'SUCCESS' | 'FAILED';
+  paymentMethod?: 'MOMO' | 'VNPAY';
+  startDate?: string;
+  endDate?: string;
+  page?: number;
+  limit?: number;
+}
+
 export interface ApiResponse<T> {
   data?: T;
   error?: string;

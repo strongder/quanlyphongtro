@@ -242,20 +242,18 @@ const MeterReadingsScreen = ({ navigation }: any) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Chỉ số điện nước</Text>
-        {getAvailableRooms().length > 0 && (
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={handleAddReading}
-          >
-            <Ionicons name="add" size={24} color="white" />
-          </TouchableOpacity>
-        )}
-      </View>
-
       <View style={styles.filterContainer}>
-        <Text style={styles.filterLabel}>Kỳ:</Text>
+        <View style={styles.filterHeader}>
+          <Text style={styles.filterLabel}>Kỳ:</Text>
+          {getAvailableRooms().length > 0 && (
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={handleAddReading}
+            >
+              <Ionicons name="add" size={20} color="white" />
+            </TouchableOpacity>
+          )}
+        </View>
         <FlatList
           horizontal
           data={generateKyOptions()}
@@ -453,19 +451,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
+  filterContainer: {
     backgroundColor: 'white',
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+  filterHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
   },
   addButton: {
     backgroundColor: '#007AFF',
@@ -475,13 +471,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  filterContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+  addButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
   },
   filterLabel: {
     fontSize: 16,

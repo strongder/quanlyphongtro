@@ -8,6 +8,17 @@ const db = new Database(dbFile);
 db.pragma('foreign_keys = ON');
 
 function runMigrations() {
+  // Drop old Invoice table if exists and doesn't have tenantId
+  try {
+    const cols = db.prepare("PRAGMA table_info('Invoice')").all();
+    const hasTenantId = cols.some(c => c.name === 'tenantId');
+    if (!hasTenantId) {
+      db.exec('DROP TABLE IF EXISTS Invoice;');
+    }
+  } catch (e) {
+    // Table doesn't exist yet, continue
+  }
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS User (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -73,6 +84,7 @@ function runMigrations() {
     CREATE TABLE IF NOT EXISTS Invoice (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       roomId INTEGER NOT NULL REFERENCES Room(id) ON DELETE CASCADE,
+      tenantId INTEGER NOT NULL REFERENCES Tenant(id) ON DELETE CASCADE,
       ky TEXT NOT NULL,
       tienPhong REAL NOT NULL,
       dienTieuThu REAL NOT NULL,
@@ -91,6 +103,7 @@ function runMigrations() {
     CREATE TABLE IF NOT EXISTS Payment (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       invoiceId INTEGER NOT NULL REFERENCES Invoice(id) ON DELETE CASCADE,
+      tenantId INTEGER NOT NULL REFERENCES Tenant(id) ON DELETE CASCADE,
       transactionId TEXT NOT NULL UNIQUE,
       amount REAL NOT NULL,
       status TEXT NOT NULL CHECK(status IN ('SUCCESS','FAILED','CANCELLED','PENDING')) DEFAULT 'PENDING',
@@ -108,30 +121,34 @@ function runMigrations() {
 
     CREATE INDEX IF NOT EXISTS idx_room_maPhong ON Room(maPhong);
     CREATE INDEX IF NOT EXISTS idx_tenant_phone ON Tenant(soDienThoai);
+    CREATE INDEX IF NOT EXISTS idx_invoice_tenant ON Invoice(tenantId);
     CREATE INDEX IF NOT EXISTS idx_invoice_ky_status ON Invoice(ky, status);
     CREATE INDEX IF NOT EXISTS idx_meter_room_ky ON MeterReading(roomId, ky);
     CREATE INDEX IF NOT EXISTS idx_payment_invoice ON Payment(invoiceId);
+    CREATE INDEX IF NOT EXISTS idx_payment_tenant ON Payment(tenantId);
     CREATE INDEX IF NOT EXISTS idx_payment_transaction ON Payment(transactionId);
   `);
 }
 
 runMigrations();
 
-// Simple migration to ensure Invoice supports PENDING and requestedAt
+// Simple migration to ensure Invoice supports tenantId, PENDING and requestedAt
 try {
   const cols = db.prepare("PRAGMA table_info('Invoice')").all();
+  const hasTenantId = cols.some(c => c.name === 'tenantId');
   const hasRequestedAt = cols.some(c => c.name === 'requestedAt');
   // Check constraint by reading table SQL
   const tableSqlRow = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='Invoice'").get();
   const tableSql = tableSqlRow?.sql || '';
   const supportsPending = tableSql.includes("'PENDING'");
 
-  if (!hasRequestedAt || !supportsPending) {
+  if (!hasTenantId || !hasRequestedAt || !supportsPending) {
     db.transaction(() => {
       db.exec(`
         CREATE TABLE IF NOT EXISTS Invoice_new (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           roomId INTEGER NOT NULL REFERENCES Room(id) ON DELETE CASCADE,
+          tenantId INTEGER NOT NULL REFERENCES Tenant(id) ON DELETE CASCADE,
           ky TEXT NOT NULL,
           tienPhong REAL NOT NULL,
           dienTieuThu REAL NOT NULL,
@@ -148,10 +165,12 @@ try {
         );
       `);
 
-      // Copy data with best-effort mapping; requestedAt will be NULL
+      // Copy data with best-effort mapping; get tenantId from RoomTenant
       db.exec(`
-        INSERT INTO Invoice_new (id, roomId, ky, tienPhong, dienTieuThu, nuocTieuThu, donGiaDien, donGiaNuoc, phuPhi, tongCong, status, createdAt, paidAt)
-        SELECT id, roomId, ky, tienPhong, dienTieuThu, nuocTieuThu, donGiaDien, donGiaNuoc, phuPhi, tongCong, status, createdAt, paidAt FROM Invoice;
+        INSERT INTO Invoice_new (id, roomId, tenantId, ky, tienPhong, dienTieuThu, nuocTieuThu, donGiaDien, donGiaNuoc, phuPhi, tongCong, status, createdAt, paidAt)
+        SELECT i.id, i.roomId, COALESCE(rt.tenantId, 1) as tenantId, i.ky, i.tienPhong, i.dienTieuThu, i.nuocTieuThu, i.donGiaDien, i.donGiaNuoc, i.phuPhi, i.tongCong, i.status, i.createdAt, i.paidAt 
+        FROM Invoice i
+        LEFT JOIN RoomTenant rt ON i.roomId = rt.roomId AND rt.isPrimaryTenant = 1;
       `);
 
       db.exec('DROP TABLE Invoice;');

@@ -137,16 +137,6 @@ const TenantsScreen = ({ navigation }: any) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Quản lý khách thuê</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => navigation.navigate('TenantDetail', { tenant: null })}
-        >
-          <Ionicons name="add" size={24} color="white" />
-        </TouchableOpacity>
-      </View>
-
       <View style={styles.searchContainer}>
         <View style={styles.searchInputContainer}>
           <Ionicons name="search-outline" size={20} color="#666" />
@@ -157,7 +147,13 @@ const TenantsScreen = ({ navigation }: any) => {
             placeholder="Tìm kiếm theo tên hoặc số điện thoại..."
             placeholderTextColor="#999"
           />
-        </View>
+        </View> 
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => navigation.navigate('TenantDetail', { tenant: null })}
+        >
+          <Ionicons name="add" size={24} color="white" />
+        </TouchableOpacity>
       </View>
 
       <FlatList
@@ -221,8 +217,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   searchInputContainer: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f8f8f8',

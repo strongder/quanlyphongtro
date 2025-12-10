@@ -137,18 +137,6 @@ const InvoiceDetailScreen = ({ navigation, route }: any) => {
           )}
         </View>
       </View>
-
-      {invoice.status === 'UNPAID' && (
-        <View style={styles.actionContainer}>
-          <TouchableOpacity
-            style={styles.payButton}
-            onPress={handlePayInvoice}
-          >
-            <Ionicons name="checkmark-outline" size={24} color="white" />
-            <Text style={styles.payButtonText}>Đánh dấu đã thanh toán</Text>
-          </TouchableOpacity>
-        </View>
-      )}
     </ScrollView>
   );
 };

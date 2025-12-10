@@ -76,8 +76,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       await SecureStore.setItemAsync("authToken", response.token);
       await SecureStore.setItemAsync("userRole", response.user.role);
-      const biometricSuccess = await authenticateWithBiometrics();
-      if (!biometricSuccess) throw new Error("Vân tay thất bại");
+      // const biometricSuccess = await authenticateWithBiometrics();
+      // if (!biometricSuccess) throw new Error("Vân tay thất bại");
 
       setUser(response.user);
     } catch (error) {
