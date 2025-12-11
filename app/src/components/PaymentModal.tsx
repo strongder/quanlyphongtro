@@ -17,7 +17,6 @@ interface PaymentModalProps {
   invoiceId: number;
   invoiceAmount: number;
   onClose: () => void;
-  onload: () => void;
 }
 
 type PaymentMethod = 'VNPAY' | 'MOMO';
@@ -27,7 +26,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   invoiceId,
   invoiceAmount,
   onClose,
-  onload,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
@@ -47,16 +45,19 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     
     try {
       let paymentResponse;
+      
       if (method === 'VNPAY') {
         paymentResponse = await vnpayService.createPaymentUrl(invoiceId);
       } else if (method === 'MOMO') {
         paymentResponse = await momoService.createPaymentUrl(invoiceId);
       }
+
       if (paymentResponse?.code !== '00' || !paymentResponse?.paymentUrl) {
         Alert.alert('Lỗi', paymentResponse?.message || 'Không thể tạo link thanh toán');
         setSelectedMethod(null);
         return;
       }
+
       setPaymentUrl(paymentResponse.paymentUrl);
     } catch (err: any) {
       console.error('Payment error:', err);
@@ -79,13 +80,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
         if (invoiceStatus === 'PAID' || paymentStatus === 'SUCCESS') {
           Alert.alert('✅ Thanh toán thành công', `Số tiền: ${invoiceAmount.toLocaleString()}đ`);
-          onload();
           return;
         }
 
         if (paymentStatus === 'FAILED' || paymentStatus === 'CANCELLED') {
           Alert.alert('❌ Thanh toán thất bại', `Mã lỗi: ${statusResp.payment?.responseCode || 'N/A'}`);
-          onload();
           return;
         }
 

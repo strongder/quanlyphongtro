@@ -76,28 +76,6 @@ Server (Express + better-sqlite3)
 - MoMo: `/api/momo/create`, `/api/momo/status/:invoiceId`, `/api/momo/callback` (IPN), `/api/momo/return` (redirect).
 - Bảng Payment có cột `paymentMethod` (VNPAY/MOMO) và `tenantId`.
 
-
-
-## Thông tin thanh toán 
-
-### VNpay
-```
-Ngân hàng         NCB
-Số thẻ            9704198526191432198
-Tên chủ thẻ       NGUYEN VAN A
-Ngày phát hành    07/15
-Mật khẩu OTP      123456
-```
-
-### MOMO
-```
-No	Tên	          Số thẻ	                  Hạn ghi trên thẻ	 Số điện thọa        OTP	  Trường hợp test
-1	  NGUYEN VAN A	9704 0000 0000 0018	      03/07	             0987778888         OTP	  Thành công
-2	  NGUYEN VAN A	9704 0000 0000 0026	      03/07	             Sdt bat ky 10 so   OTP	  Thẻ bị khóa
-3	  NGUYEN VAN A	9704 0000 0000 0034	      03/07	             Sdt bat ky 10 so   OTP	  Nguồn tiền không đủ
-4	  NGUYEN VAN A	9704 0000 0000 0042	      03/07	             Sdt bat ky 10 so   OTP	  Hạn mức thẻ       
-```
-
 ## Chạy dự án
 ```bash
 # cài phụ thuộc

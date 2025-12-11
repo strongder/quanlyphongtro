@@ -6,9 +6,6 @@ const { authRequired } = require("./middlewares/auth");
 
 const app = express();
 
-// Trust proxy for accurate IP detection behind reverse proxy/load balancer
-app.set('trust proxy', 1);
-
 // Logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
