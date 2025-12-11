@@ -190,12 +190,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 </TouchableOpacity>
               </View>
 
-              {isLoading && (
+              {/* {isLoading && (
                 <View style={styles.loadingOverlay}>
                   <ActivityIndicator size="large" color="#3b82f6" />
                   <Text style={styles.loadingText}>Đang tạo link thanh toán...</Text>
                 </View>
-              )}
+              )} */}
             </>
           ) : (
             // Màn hình WebView thanh toán

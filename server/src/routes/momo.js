@@ -171,90 +171,91 @@ router.get("/status/:invoiceId", authRequired, (req, res) => {
   });
 });
 
-// Callback từ MoMo (IPN - Instant Payment Notification)
-router.post("/callback", (req, res) => {
-  const {
-    partnerCode,
-    orderId,
-    requestId,
-    amount,
-    orderInfo,
-    orderType,
-    transId,
-    resultCode,
-    message,
-    payType,
-    responseTime,
-    extraData,
-    signature,
-  } = req.body;
 
-  // Verify signature
-  const rawSignature =
-    "accessKey=" + momoConfig.accessKey +
-    "&amount=" + amount +
-    "&extraData=" + extraData +
-    "&message=" + message +
-    "&orderId=" + orderId +
-    "&orderInfo=" + orderInfo +
-    "&orderType=" + orderType +
-    "&partnerCode=" + partnerCode +
-    "&payType=" + payType +
-    "&requestId=" + requestId +
-    "&responseTime=" + responseTime +
-    "&resultCode=" + resultCode +
-    "&transId=" + transId;
+// // Callback từ MoMo (IPN - Instant Payment Notification)
+// router.post("/callback", (req, res) => {
+//   const {
+//     partnerCode,
+//     orderId,
+//     requestId,
+//     amount,
+//     orderInfo,
+//     orderType,
+//     transId,
+//     resultCode,
+//     message,
+//     payType,
+//     responseTime,
+//     extraData,
+//     signature,
+//   } = req.body;
 
-  const expectedSignature = createSignature(rawSignature);
+//   // Verify signature
+//   const rawSignature =
+//     "accessKey=" + momoConfig.accessKey +
+//     "&amount=" + amount +
+//     "&extraData=" + extraData +
+//     "&message=" + message +
+//     "&orderId=" + orderId +
+//     "&orderInfo=" + orderInfo +
+//     "&orderType=" + orderType +
+//     "&partnerCode=" + partnerCode +
+//     "&payType=" + payType +
+//     "&requestId=" + requestId +
+//     "&responseTime=" + responseTime +
+//     "&resultCode=" + resultCode +
+//     "&transId=" + transId;
 
-  if (signature !== expectedSignature) {
-    console.error("Invalid MoMo signature");
-    return res.status(400).json({ error: "Invalid signature" });
-  }
+//   const expectedSignature = createSignature(rawSignature);
 
-  // Extract invoiceId from orderInfo
-  const invoiceId = extractInvoiceId(orderInfo);
+//   if (signature !== expectedSignature) {
+//     console.error("Invalid MoMo signature");
+//     return res.status(400).json({ error: "Invalid signature" });
+//   }
 
-  try {
-    if (!invoiceId) {
-      console.error("No invoice ID in orderInfo:", orderInfo);
-      return res.status(400).json({ error: "Invalid orderInfo" });
-    }
+//   // Extract invoiceId from orderInfo
+//   const invoiceId = extractInvoiceId(orderInfo);
 
-    const invoice = db.prepare("SELECT * FROM Invoice WHERE id = ?").get(invoiceId);
-    if (!invoice) {
-      console.error("Invoice not found:", invoiceId);
-      return res.status(404).json({ error: "Invoice not found" });
-    }
+//   try {
+//     if (!invoiceId) {
+//       console.error("No invoice ID in orderInfo:", orderInfo);
+//       return res.status(400).json({ error: "Invalid orderInfo" });
+//     }
 
-    let paymentStatus = "FAILED";
-    if (resultCode === 0) paymentStatus = "SUCCESS";
-    else if (resultCode === 1006) paymentStatus = "CANCELLED";
+//     const invoice = db.prepare("SELECT * FROM Invoice WHERE id = ?").get(invoiceId);
+//     if (!invoice) {
+//       console.error("Invoice not found:", invoiceId);
+//       return res.status(404).json({ error: "Invoice not found" });
+//     }
 
-    const existingPayment = db
-      .prepare("SELECT * FROM Payment WHERE transactionId = ?")
-      .get(orderId);
+//     let paymentStatus = "FAILED";
+//     if (resultCode === 0) paymentStatus = "SUCCESS";
+//     else if (resultCode === 1006) paymentStatus = "CANCELLED";
 
-    if (existingPayment) {
-      db.prepare(
-        `UPDATE Payment SET status = ?, responseCode = ?, paidAt = datetime('now') WHERE transactionId = ?`
-      ).run(paymentStatus, resultCode.toString(), orderId);
-    } else {
-      db.prepare(
-        `INSERT INTO Payment (invoiceId, tenantId, transactionId, amount, status, responseCode, paymentMethod, paidAt) VALUES (?, ?, ?, ?, ?, ?, 'MOMO', datetime('now'))`
-      ).run(invoiceId, invoice.tenantId, orderId, parseFloat(amount), paymentStatus, resultCode.toString());
-    }
+//     const existingPayment = db
+//       .prepare("SELECT * FROM Payment WHERE transactionId = ?")
+//       .get(orderId);
 
-    if (paymentStatus === "SUCCESS") {
-      db.prepare(`UPDATE Invoice SET status = 'PAID', paidAt = datetime('now') WHERE id = ?`).run(invoiceId);
-    }
+//     if (existingPayment) {
+//       db.prepare(
+//         `UPDATE Payment SET status = ?, responseCode = ?, paidAt = datetime('now') WHERE transactionId = ?`
+//       ).run(paymentStatus, resultCode.toString(), orderId);
+//     } else {
+//       db.prepare(
+//         `INSERT INTO Payment (invoiceId, tenantId, transactionId, amount, status, responseCode, paymentMethod, paidAt) VALUES (?, ?, ?, ?, ?, ?, 'MOMO', datetime('now'))`
+//       ).run(invoiceId, invoice.tenantId, orderId, parseFloat(amount), paymentStatus, resultCode.toString());
+//     }
 
-    return res.status(200).json({ message: "Callback processed" });
-  } catch (err) {
-    console.error("MoMo callback error:", err);
-    return res.status(500).json({ error: "Server error" });
-  }
-});
+//     if (paymentStatus === "SUCCESS") {
+//       db.prepare(`UPDATE Invoice SET status = 'PAID', paidAt = datetime('now') WHERE id = ?`).run(invoiceId);
+//     }
+
+//     return res.status(200).json({ message: "Callback processed" });
+//   } catch (err) {
+//     console.error("MoMo callback error:", err);
+//     return res.status(500).json({ error: "Server error" });
+//   }
+// });
 
 // Redirect từ MoMo (sau khi user thanh toán)
 router.get("/return", (req, res) => {
