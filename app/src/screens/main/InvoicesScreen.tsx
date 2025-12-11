@@ -288,6 +288,7 @@ const InvoicesScreen = ({ navigation }: any) => {
             setPaymentModalVisible(false);
             setSelectedInvoiceForPayment(null);
           }}
+          onload={loadData}
         />
       )}
     </View>

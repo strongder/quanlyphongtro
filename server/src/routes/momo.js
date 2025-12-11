@@ -77,6 +77,8 @@ router.post("/create", authRequired, (req, res) => {
     signature: signature,
   });
 
+  console.log('MoMo Request:', JSON.parse(requestBody));
+
   const options = {
     hostname: "test-payment.momo.vn",
     port: 443,
@@ -170,94 +172,6 @@ router.get("/status/:invoiceId", authRequired, (req, res) => {
       : null,
   });
 });
-
-
-// // Callback từ MoMo (IPN - Instant Payment Notification)
-// router.post("/callback", (req, res) => {
-//   const {
-//     partnerCode,
-//     orderId,
-//     requestId,
-//     amount,
-//     orderInfo,
-//     orderType,
-//     transId,
-//     resultCode,
-//     message,
-//     payType,
-//     responseTime,
-//     extraData,
-//     signature,
-//   } = req.body;
-
-//   // Verify signature
-//   const rawSignature =
-//     "accessKey=" + momoConfig.accessKey +
-//     "&amount=" + amount +
-//     "&extraData=" + extraData +
-//     "&message=" + message +
-//     "&orderId=" + orderId +
-//     "&orderInfo=" + orderInfo +
-//     "&orderType=" + orderType +
-//     "&partnerCode=" + partnerCode +
-//     "&payType=" + payType +
-//     "&requestId=" + requestId +
-//     "&responseTime=" + responseTime +
-//     "&resultCode=" + resultCode +
-//     "&transId=" + transId;
-
-//   const expectedSignature = createSignature(rawSignature);
-
-//   if (signature !== expectedSignature) {
-//     console.error("Invalid MoMo signature");
-//     return res.status(400).json({ error: "Invalid signature" });
-//   }
-
-//   // Extract invoiceId from orderInfo
-//   const invoiceId = extractInvoiceId(orderInfo);
-
-//   try {
-//     if (!invoiceId) {
-//       console.error("No invoice ID in orderInfo:", orderInfo);
-//       return res.status(400).json({ error: "Invalid orderInfo" });
-//     }
-
-//     const invoice = db.prepare("SELECT * FROM Invoice WHERE id = ?").get(invoiceId);
-//     if (!invoice) {
-//       console.error("Invoice not found:", invoiceId);
-//       return res.status(404).json({ error: "Invoice not found" });
-//     }
-
-//     let paymentStatus = "FAILED";
-//     if (resultCode === 0) paymentStatus = "SUCCESS";
-//     else if (resultCode === 1006) paymentStatus = "CANCELLED";
-
-//     const existingPayment = db
-//       .prepare("SELECT * FROM Payment WHERE transactionId = ?")
-//       .get(orderId);
-
-//     if (existingPayment) {
-//       db.prepare(
-//         `UPDATE Payment SET status = ?, responseCode = ?, paidAt = datetime('now') WHERE transactionId = ?`
-//       ).run(paymentStatus, resultCode.toString(), orderId);
-//     } else {
-//       db.prepare(
-//         `INSERT INTO Payment (invoiceId, tenantId, transactionId, amount, status, responseCode, paymentMethod, paidAt) VALUES (?, ?, ?, ?, ?, ?, 'MOMO', datetime('now'))`
-//       ).run(invoiceId, invoice.tenantId, orderId, parseFloat(amount), paymentStatus, resultCode.toString());
-//     }
-
-//     if (paymentStatus === "SUCCESS") {
-//       db.prepare(`UPDATE Invoice SET status = 'PAID', paidAt = datetime('now') WHERE id = ?`).run(invoiceId);
-//     }
-
-//     return res.status(200).json({ message: "Callback processed" });
-//   } catch (err) {
-//     console.error("MoMo callback error:", err);
-//     return res.status(500).json({ error: "Server error" });
-//   }
-// });
-
-// Redirect từ MoMo (sau khi user thanh toán)
 router.get("/return", (req, res) => {
   const {
     partnerCode,
@@ -293,7 +207,7 @@ router.get("/return", (req, res) => {
 
   const expectedSignature = createSignature(rawSignature);
 
-  const RETURN_BASE = "http://192.168.5.41:3000/momo-return";
+  const RETURN_BASE = momoConfig.baseReturn;
   const buildReturn = (status, code = "", invoiceId = "") =>
     `${RETURN_BASE}?status=${status}&resultCode=${code}&invoiceId=${invoiceId}`;
 

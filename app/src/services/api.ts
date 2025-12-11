@@ -3,12 +3,10 @@ import * as SecureStore from 'expo-secure-store';
 import { AuthResponse, User, Room, Tenant, MeterReading, Invoice, PaymentResponse, PaymentStatusResponse, Payment, PaymentStats, PaymentFilters } from '../types';
 import * as WebBrowser from 'expo-web-browser';
 
-// Sử dụng IP thay vì localhost để app có thể kết nối từ thiết bị thật
+// Sử dụng IP thay vì localhost để app có thể kết nối từ thiết bị thật.com
 // 192.168.5.231
-//  192.130.38.115
-//192.168.5.41
-// https://calls-comply-projects-dealtime.trycloudflare.com
-const API_BASE_URL = 'http://192.168.5.41:3000/api';
+const API_URL = 'https://d9feba585d1a.ngrok-free.app';
+const API_BASE_URL = `${API_URL}/api`;
 
 
 const api = axios.create({

@@ -152,7 +152,7 @@ router.get("/callback", (req, res) => {
 
   const { signData, secureHash: expectedHash } = buildSecureHash(vnp_Params);
 
-  const RETURN_BASE = "http://192.168.5.41:3000/vnpay-return"; // URL tĩnh để WebView bắt
+  const RETURN_BASE = vnpConfig.baseReturn; // URL tĩnh để WebView bắt
   const buildReturn = (status, code = "", invoiceId = "") =>
     `${RETURN_BASE}?status=${status}&vnp_ResponseCode=${code}&invoiceId=${invoiceId}`;
 

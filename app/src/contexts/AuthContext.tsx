@@ -76,9 +76,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       await SecureStore.setItemAsync("authToken", response.token);
       await SecureStore.setItemAsync("userRole", response.user.role);
-      // const biometricSuccess = await authenticateWithBiometrics();
-      // if (!biometricSuccess) throw new Error("Vân tay thất bại");
-
+      
+      // Kiểm tra nếu thiết bị hỗ trợ vân tay thì bắt xác thực
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+      
+      if (hasHardware && isEnrolled) {
+        const biometricSuccess = await authenticateWithBiometrics();
+        if (!biometricSuccess) {
+          await SecureStore.deleteItemAsync("authToken");
+          throw new Error("Xác thực vân tay thất bại");
+        }
+      }
+      
       setUser(response.user);
     } catch (error) {
       throw error;
