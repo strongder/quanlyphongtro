@@ -30,9 +30,14 @@ router.post('/register-manager', (req, res) => {
 
 // Đăng ký khách thuê
 router.post('/register-tenant', (req, res) => {
-  const { username, name, phone, password } = req.body || {};
+  const { username, name, phone, password, email, diaChi, ngaySinh, gioiTinh, cccd } = req.body || {};
   if (!username || !password) return res.status(400).json({ error: 'username, password required' });
   if (!name) return res.status(400).json({ error: 'name required' });
+  
+  // Validate gioiTinh if provided
+  if (gioiTinh && !['NAM', 'NU', 'KHAC'].includes(gioiTinh)) {
+    return res.status(400).json({ error: 'gioiTinh must be NAM, NU, or KHAC' });
+  }
   
   // Kiểm tra username đã tồn tại
   const existing = db.prepare('SELECT * FROM User WHERE username = ?').get(username);
@@ -45,18 +50,29 @@ router.post('/register-tenant', (req, res) => {
   
   // Bắt đầu transaction
   const insertUser = db.prepare('INSERT INTO User (role, username, name, phone, passwordHash, status) VALUES (?,?,?,?,?,?)');
-  const insertTenant = db.prepare('INSERT INTO Tenant (userId, hoTen, soDienThoai) VALUES (?,?,?)');
+  const insertTenant = db.prepare(
+    'INSERT INTO Tenant (userId, hoTen, soDienThoai, email, diaChi, ngaySinh, gioiTinh, cccd) VALUES (?,?,?,?,?,?,?,?)'
+  );
   
   try {
     // Tạo User với status PENDING
     const userInfo = insertUser.run('TENANT', username, encryptedUser.name, encryptedUser.phone || null, hash, 'PENDING');
     const userId = userInfo.lastInsertRowid;
     
-    // Mã hóa dữ liệu Tenant
-    const encryptedTenant = encryptTenant({ soDienThoai: phone });
+    // Mã hóa dữ liệu Tenant (phone + email nếu có)
+    const encryptedTenant = encryptTenant({ soDienThoai: phone, email });
     
     // Tạo Tenant record liên kết với User
-    insertTenant.run(userId, name, encryptedTenant.soDienThoai || null);
+    insertTenant.run(
+      userId,
+      name,
+      encryptedTenant.soDienThoai || null,
+      encryptedTenant.email || null,
+      diaChi || null,
+      ngaySinh || null,
+      gioiTinh || null,
+      cccd || null
+    );
     
     const user = db.prepare('SELECT id, role, username, name, phone, status, createdAt FROM User WHERE id = ?')
       .get(userId);

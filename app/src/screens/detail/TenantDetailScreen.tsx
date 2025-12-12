@@ -132,7 +132,7 @@ const TenantDetailScreen = ({ navigation, route }: any) => {
               style={styles.input}
               value={formData.ngaySinh}
               onChangeText={(text) => setFormData({ ...formData, ngaySinh: text })}
-              placeholder="YYYY-MM-DD"
+              placeholder="DD/MM/YYYY"
             />
           </View>
 

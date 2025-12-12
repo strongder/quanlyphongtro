@@ -5,7 +5,7 @@ import * as WebBrowser from 'expo-web-browser';
 
 
 // Sử dụng IP thay vì localhost để app có thể kết nối từ thiết bị thật.com
-const API_URL = 'https://d9feba585d1a.ngrok-free.app';
+const API_URL = 'https://laboratories-lights-suited-rolling.trycloudflare.com';
 const API_BASE_URL = `${API_URL}/api`;
 
 const api = axios.create({
@@ -62,6 +62,21 @@ export const authService = {
     const response = await api.patch('/users/me', data);
     return response.data;
   },
+
+  async updateProfileForAdmin(userId: number, data: Partial<User>): Promise<User> {
+    const response = await api.patch(`/users/${userId}`, data);
+    return response.data;
+  },
+
+  async getAllUsers(): Promise<User[]> {
+    const response = await api.get('/users');
+    return response.data;
+  },
+
+  async deleteUser(userId: number): Promise<{ success: boolean; message: string; userId: number }> {
+    const response = await api.delete(`/users/${userId}`);
+    return response.data;
+  }
 };
 
 export const roomService = {

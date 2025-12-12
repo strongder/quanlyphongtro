@@ -148,12 +148,6 @@ const TenantsScreen = ({ navigation }: any) => {
             placeholderTextColor="#999"
           />
         </View> 
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => navigation.navigate('TenantDetail', { tenant: null })}
-        >
-          <Ionicons name="add" size={24} color="white" />
-        </TouchableOpacity>
       </View>
 
       <FlatList

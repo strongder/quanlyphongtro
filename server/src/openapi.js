@@ -49,7 +49,25 @@ module.exports = {
         summary: 'Dang ky khach thue',
         requestBody: {
           required: true,
-          content: { 'application/json': { schema: { type: 'object', properties: { username: { type: 'string' }, name: { type: 'string' }, phone: { type: 'string' }, password: { type: 'string' } }, required: ['username', 'name', 'password'] } } },
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  username: { type: 'string', description: 'Ten dang nhap (bat buoc)' },
+                  name: { type: 'string', description: 'Ho va ten (bat buoc)' },
+                  password: { type: 'string', description: 'Mat khau (bat buoc, toi thieu 6 ky tu)' },
+                  phone: { type: 'string', description: 'So dien thoai (optional)' },
+                  email: { type: 'string', format: 'email', description: 'Email (optional)' },
+                  diaChi: { type: 'string', description: 'Dia chi (optional)' },
+                  ngaySinh: { type: 'string', format: 'date', description: 'Ngay sinh (optional, format: YYYY-MM-DD)' },
+                  gioiTinh: { type: 'string', enum: ['NAM', 'NU', 'KHAC'], description: 'Gioi tinh (optional)' },
+                  cccd: { type: 'string', description: 'So CCCD (optional)' }
+                },
+                required: ['username', 'name', 'password']
+              }
+            }
+          }
         },
         responses: { '201': { description: 'Created' } },
       },
@@ -71,6 +89,83 @@ module.exports = {
     '/users/me': {
       get: { tags: ['Users'], summary: 'Lay profile', responses: { '200': { description: 'OK' } } },
       patch: { tags: ['Users'], summary: 'Cap nhat profile', requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { name: { type: 'string' }, phone: { type: 'string' }, expoPushToken: { type: 'string' } } } } } }, responses: { '200': { description: 'OK' } } },
+    },
+    '/users': {
+      get: {
+        tags: ['Users'],
+        summary: 'Danh sach tat ca users (admin)',
+        parameters: [
+          { name: 'role', in: 'query', schema: { type: 'string', enum: ['MANAGER', 'TENANT'] } },
+          { name: 'status', in: 'query', schema: { type: 'string', enum: ['ACTIVE', 'PENDING', 'REJECTED', 'DELETED'] } },
+          { name: 'includeDeleted', in: 'query', schema: { type: 'string', enum: ['true', 'false'], default: 'false' }, description: 'Co include users da bi xoa' },
+          { name: 'limit', in: 'query', schema: { type: 'integer', default: 20 } },
+          { name: 'offset', in: 'query', schema: { type: 'integer', default: 0 } },
+        ],
+        responses: { '200': { description: 'OK' }, '403': { description: 'Forbidden' } },
+      },
+    },
+    '/users/{id}': {
+      get: {
+        tags: ['Users'],
+        summary: 'Lay thong tin user theo ID',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        responses: { '200': { description: 'OK' }, '403': { description: 'Forbidden' }, '404': { description: 'Not found' } },
+      },
+      patch: {
+        tags: ['Users'],
+        summary: 'Cap nhat thong tin user (admin)',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string' },
+                  phone: { type: 'string' },
+                  password: { type: 'string', description: 'Mat khau (toi thieu 6 ky tu)' },
+                  status: { type: 'string', enum: ['ACTIVE', 'PENDING', 'REJECTED', 'DELETED'] }
+                }
+              }
+            }
+          }
+        },
+        responses: { '200': { description: 'OK' }, '403': { description: 'Forbidden' }, '404': { description: 'Not found' } },
+      },
+      delete: {
+        tags: ['Users'],
+        summary: 'Xoa user (soft delete - set status DELETED)',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        responses: { '200': { description: 'OK' }, '403': { description: 'Forbidden' }, '404': { description: 'Not found' } },
+      },
+    },
+    '/users/{userId}/tenant': {
+      patch: {
+        tags: ['Users'],
+        summary: 'Cap nhat thong tin tenant (admin)',
+        parameters: [{ name: 'userId', in: 'path', required: true, schema: { type: 'integer' } }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  hoTen: { type: 'string' },
+                  soDienThoai: { type: 'string' },
+                  cccd: { type: 'string' },
+                  email: { type: 'string' },
+                  diaChi: { type: 'string' },
+                  ngaySinh: { type: 'string', format: 'date' },
+                  gioiTinh: { type: 'string', enum: ['NAM', 'NU', 'KHAC'] }
+                }
+              }
+            }
+          }
+        },
+        responses: { '200': { description: 'OK' }, '403': { description: 'Forbidden' }, '404': { description: 'Not found' } },
+      },
     },
 
     // Rooms
@@ -417,6 +512,10 @@ module.exports = {
           hoTen: { type: 'string' },
           soDienThoai: { type: 'string' },
           cccd: { type: 'string' },
+          email: { type: 'string' },
+          diaChi: { type: 'string' },
+          ngaySinh: { type: 'string' },
+          gioiTinh: { type: 'string', enum: ['NAM', 'NU', 'KHAC'] },
           userId: { type: 'integer' },
           createdAt: { type: 'string' },
         },

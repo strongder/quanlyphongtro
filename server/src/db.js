@@ -19,6 +19,23 @@ function runMigrations() {
     // Table doesn't exist yet, continue
   }
 
+  // Check if User table status constraint needs updating
+  try {
+    const cols = db.prepare("PRAGMA table_info('User')").all();
+    if (cols.length > 0) {
+      // Table exists, check the constraint by trying to insert DELETED status
+      const checkConstraint = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='User'").get();
+      if (checkConstraint && checkConstraint.sql && !checkConstraint.sql.includes("'DELETED'")) {
+        // Old constraint without DELETED, drop and recreate
+        db.exec('DROP TABLE IF EXISTS User;');
+        db.exec('DROP TABLE IF EXISTS RoomTenant;');
+        db.exec('DROP TABLE IF EXISTS Tenant;');
+      }
+    }
+  } catch (e) {
+    // Continue with migration
+  }
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS User (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -28,7 +45,7 @@ function runMigrations() {
       phone TEXT,
       passwordHash TEXT,
       expoPushToken TEXT,
-      status TEXT NOT NULL CHECK(status IN ('ACTIVE','PENDING','REJECTED')) DEFAULT 'ACTIVE',
+      status TEXT NOT NULL CHECK(status IN ('ACTIVE','PENDING','REJECTED','DELETED')) DEFAULT 'ACTIVE',
       approvedAt TEXT,
       rejectedAt TEXT,
       rejectedReason TEXT,

@@ -14,6 +14,16 @@ export interface User {
   };
 }
 
+export interface Account {
+  id: number;
+  username: string;
+  role: 'MANAGER' | 'TENANT';
+  name: string;
+  phone?: string;
+  status: 'PENDING' | 'ACTIVE' | 'REJECTED' | 'DELETED';
+  createdAt: string;
+}
+
 export interface Room {
   id: number;
   maPhong: string;

@@ -14,7 +14,7 @@ import TenantRegisterScreen from '../screens/auth/TenantRegisterScreen';
 // Main Screens
 import DashboardScreen from '../screens/main/DashboardScreen';
 import TenantDashboardScreen from '../screens/main/TenantDashboardScreen';
-import TenantApprovalScreen from '../screens/main/TenantApprovalScreen';
+// Tenant approval tab now reuses Tenants screen for account management
 import RoomsScreen from '../screens/main/RoomsScreen';
 import TenantsScreen from '../screens/main/TenantsScreen';
 import MeterReadingsScreen from '../screens/main/MeterReadingsScreen';
@@ -30,6 +30,7 @@ import RoomDetailScreen from '../screens/detail/RoomDetailScreen';
 import TenantDetailScreen from '../screens/detail/TenantDetailScreen';
 import InvoiceDetailScreen from '../screens/detail/InvoiceDetailScreen';
 import MeterDetailScreen from '../screens/detail/MeterDetailScreen';
+import AccountScreen from '../screens/main/AccountScreen';
 import PaymentDetailScreen from '../screens/detail/PaymentDetailScreen';
 
 const Stack = createStackNavigator();
@@ -41,7 +42,7 @@ const CustomTabBar = ({ state, descriptors, navigation }: any) => {
     { name: 'Dashboard', label: 'Trang chủ', icon: 'home' },
     { name: 'Rooms', label: 'Phòng', icon: 'business' },
     { name: 'Tenants', label: 'Khách thuê', icon: 'people' },
-    { name: 'TenantApproval', label: 'Duyệt', icon: 'checkmark-circle' },
+    { name: 'TenantApproval', label: 'Tài khoản', icon: 'people' },
     { name: 'Meter', label: 'Chỉ số', icon: 'speedometer' },
     { name: 'Invoices', label: 'Hóa đơn', icon: 'receipt' },
     { name: 'Payments', label: 'Thanh toán', icon: 'wallet' },
@@ -101,7 +102,7 @@ const ManagerTabNavigator = () => (
     <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ title: 'Trang chủ' }} />
     <Tab.Screen name="Rooms" component={RoomsScreen} options={{ title: 'Quản lý phòng' }} />
     <Tab.Screen name="Tenants" component={TenantsScreen} options={{ title: 'Quản lý khách' }} />
-    <Tab.Screen name="TenantApproval" component={TenantApprovalScreen} options={{ title: 'Duyệt khách' }} />
+    <Tab.Screen name="TenantApproval" component={AccountScreen} options={{ title: 'Quản lý tài khoản' }} />
     <Tab.Screen name="Meter" component={MeterReadingsScreen} options={{ title: 'Chỉ số điện nước' }} />
     <Tab.Screen name="Invoices" component={InvoicesScreen} options={{ title: 'Hóa đơn' }} />
     <Tab.Screen name="Payments" component={PaymentsScreen} options={{ title: 'Thanh toán' }} />

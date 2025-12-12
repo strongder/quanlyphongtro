@@ -134,6 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         password,
         ...additionalInfo,
       });
+      
       // Không tự động đăng nhập vì cần chờ duyệt
     } catch (error) {
       throw error;
