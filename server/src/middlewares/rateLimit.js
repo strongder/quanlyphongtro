@@ -1,7 +1,7 @@
-import rateLimit from "express-rate-limit";
+const rateLimit = require('express-rate-limit')
 
 // giới hạn cho tất cả các route
-export const globalLimiter = rateLimit({
+ const globalLimiter = rateLimit({
     windowMs: 60 * 1000,     // 1 phút
     max: 100,                // giới hạn mỗi IP 100 yêu cầu mỗi windowMs
     message: {
@@ -12,7 +12,7 @@ export const globalLimiter = rateLimit({
     legacyHeaders: false,    // Tắt header `X-RateLimit-*`
 });
 // Giới hạn cho /login
-export const loginLimiter = rateLimit({
+ const loginLimiter = rateLimit({
   windowMs: 60 * 1000,     // 1 phút
   max: 5,                  // tối đa 5 lần thử
   message: {
@@ -23,7 +23,7 @@ export const loginLimiter = rateLimit({
   legacyHeaders: false,
 });
 // giới hạn cho otp
-export const otpLimiter = rateLimit({
+ const otpLimiter = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 phút
   max: 3,                  // tối đa 3 yêu cầu
     message: {
@@ -33,3 +33,6 @@ export const otpLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+
+ module.exports = { globalLimiter, loginLimiter, otpLimiter };
